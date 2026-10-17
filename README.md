@@ -1,0 +1,30 @@
+# Nos Recettes
+
+Le carnet de recettes partagé de la maison : choisir des recettes au menu remplit la liste de courses, rangée par rayon. Appli web installable sur téléphone (iPhone et Android) et utilisable sur ordinateur.
+
+## Comment c'est fait
+
+- `public/` : l'appli elle-même, des fichiers statiques sans étape de compilation (Vercel les sert tels quels).
+  - `app.js` : l'interface (recettes, menu, liste de courses, ajout et modification de recettes).
+  - `shim.js` : la couche de données au-dessus de Supabase.
+  - `start.js` : la connexion par lien magique envoyé par e-mail.
+  - `sw.js` et `manifest.webmanifest` : ce qui rend l'appli installable et rapide à ouvrir.
+  - `photos/` : les photos des 49 recettes d'origine.
+- `supabase/schema.sql` : la base de données et ses règles d'accès (seules les adresses de la table `members` peuvent lire et écrire).
+- `supabase/seed.sql` : les 49 recettes.
+
+## Mise en route
+
+1. **Supabase** : créez un projet sur supabase.com.
+   - Dans SQL Editor, collez `supabase/schema.sql` en remplaçant les deux adresses e-mail à la fin, puis exécutez-le.
+   - Exécutez ensuite `supabase/seed.sql`.
+   - Dans Authentication › URL Configuration, mettez l'adresse du site Vercel dans « Site URL ».
+   - Dans Project Settings › API, copiez l'« URL » et la clé « anon public » dans `public/config.js`.
+2. **Vercel** : importez ce dépôt GitHub sur vercel.com. Aucun réglage n'est nécessaire, `vercel.json` indique le dossier à publier.
+3. **Sur chaque téléphone** : ouvrez l'adresse du site, connectez-vous avec le lien reçu par e-mail, puis :
+   - iPhone (Safari) : bouton Partager › « Sur l'écran d'accueil ».
+   - Android (Chrome) : menu ⋮ › « Installer l'application ».
+
+## Ajouter une personne
+
+Dans Supabase › Table Editor › `members`, ajoutez son adresse e-mail.

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nos Recettes</title>
+<meta name="description" content="Le carnet de recettes partagé de la maison, avec la liste de courses.">
+<meta name="theme-color" content="#FAF9F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171715" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Recettes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<section class="login" id="login" hidden>
+  <h1>Nos Recettes</h1>
+  <p>Le carnet partagé de la maison. Entrez votre adresse e-mail : vous recevrez un lien pour vous connecter, une seule fois par appareil.</p>
+  <form id="login-form">
+    <label for="login-email" class="status">Adresse e-mail</label>
+    <input id="login-email" type="email" autocomplete="email" required placeholder="prenom@exemple.fr">
+    <button class="btn primary" id="login-btn">Recevoir le lien de connexion</button>
+  </form>
+  <p class="msg" id="login-msg" hidden></p>
+</section>
+<div id="shell" hidden>
+<div class="wrap">
+  <header class="top">
+    <h1>Nos Recettes<small id="sub">Le carnet partagé de la maison</small></h1>
+    <nav class="tabs" aria-label="Sections">
+      <button id="t-recettes" data-view="recettes" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M9 7h6M9 11h6"/></svg>Recettes</button>
+      <button id="t-menu" data-view="menu"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 13V3M3 3v6a2 2 0 0 0 4 0V3M5 9v12M19 3c-2 2-2 6 0 8v10"/></svg>Menu <span class="badge" id="b-menu"></span></button>
+      <button id="t-courses" data-view="courses"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="17" cy="20.5" r="1"/></svg>Courses <span class="badge" id="b-courses"></span></button>
+    </nav>
+  </header>
+  <main id="app"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<p style="text-align:center;margin:40px 0 0"><button class="signout" id="signout">Se déconnecter</button></p>
+</div>
+<script src="/vendor/supabase-2.45.4.js"></script>
+<script src="/config.js"></script>
+<script src="/shim.js"></script>
+<script src="/app.js"></script>
+<script src="/start.js"></script>
+</body>
+</html>
