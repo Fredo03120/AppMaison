@@ -12,12 +12,12 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
   - `photos/` : les photos des 49 recettes d'origine.
 - `supabase/schema.sql` : la base de données et ses règles d'accès (seules les adresses de la table `members` peuvent lire et écrire).
 - `supabase/seed.sql` : les 49 recettes.
+- `supabase/setup.sql` : les deux précédents réunis, à coller en une fois.
 
 ## Mise en route
 
 1. **Supabase** : créez un projet sur supabase.com.
-   - Dans SQL Editor, collez `supabase/schema.sql` en remplaçant les deux adresses e-mail à la fin, puis exécutez-le.
-   - Exécutez ensuite `supabase/seed.sql`.
+   - Dans SQL Editor, collez `supabase/setup.sql` (la base et les 49 recettes) et exécutez-le. On peut le relancer sans risque.
    - Dans Authentication › URL Configuration, mettez l'adresse du site Vercel dans « Site URL ».
    - Dans Project Settings › API, copiez l'« URL » et la clé « anon public » dans `public/config.js`.
 2. **Vercel** : importez ce dépôt GitHub sur vercel.com. Aucun réglage n'est nécessaire, `vercel.json` indique le dossier à publier.

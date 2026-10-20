@@ -62,8 +62,7 @@ drop policy if exists "membres envoient des photos" on storage.objects;
 create policy "membres envoient des photos" on storage.objects for insert to authenticated
   with check (bucket_id = 'photos' and public.is_member());
 
--- Remplacez par vos deux adresses e-mail.
+-- Les personnes autorisées. Pour en ajouter une : Table Editor › members.
 insert into public.members (email) values
-  ('votre-adresse@exemple.fr'),
-  ('adresse-de-votre-femme@exemple.fr')
+  ('frederic69008@gmail.com')
 on conflict do nothing;
