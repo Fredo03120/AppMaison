@@ -19,12 +19,13 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
 1. **Supabase** : créez un projet sur supabase.com.
    - Dans SQL Editor, collez `supabase/setup.sql` (la base et les 49 recettes) et exécutez-le. On peut le relancer sans risque.
    - Dans Authentication › URL Configuration, mettez l'adresse du site Vercel dans « Site URL ».
+   - Dans Authentication › Sign In / Providers › Email, désactivez « Confirm email » : la création de compte se fait alors sans e-mail (le service d'e-mail gratuit n'envoie que quelques messages par heure).
    - Dans Project Settings › API, copiez l'« URL » et la clé « anon public » dans `public/config.js`.
 2. **Vercel** : importez ce dépôt GitHub sur vercel.com. Aucun réglage n'est nécessaire, `vercel.json` indique le dossier à publier.
-3. **Sur chaque téléphone** : ouvrez l'adresse du site, connectez-vous avec le lien reçu par e-mail, puis :
+3. **Sur chaque téléphone** : ouvrez l'adresse du site, créez votre compte (ou connectez-vous) avec e-mail et mot de passe, puis :
    - iPhone (Safari) : bouton Partager › « Sur l'écran d'accueil ».
    - Android (Chrome) : menu ⋮ › « Installer l'application ».
 
 ## Ajouter une personne
 
-Dans Supabase › Table Editor › `members`, ajoutez son adresse e-mail.
+Dans Supabase › Table Editor › `members`, ajoutez son adresse e-mail. Elle crée ensuite son compte depuis l'appli avec cette adresse.

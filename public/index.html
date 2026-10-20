@@ -21,11 +21,15 @@
 <body>
 <section class="login" id="login" hidden>
   <h1>Nos Recettes</h1>
-  <p>Le carnet partagé de la maison. Entrez votre adresse e-mail : vous recevrez un lien pour vous connecter, une seule fois par appareil.</p>
+  <p>Le carnet partagé de la maison. Connectez-vous une fois sur chaque appareil, l'appli s'en souvient ensuite.</p>
   <form id="login-form">
     <label for="login-email" class="status">Adresse e-mail</label>
     <input id="login-email" type="email" autocomplete="email" required placeholder="prenom@exemple.fr">
-    <button class="btn primary" id="login-btn">Recevoir le lien de connexion</button>
+    <label for="login-pass" class="status">Mot de passe</label>
+    <input id="login-pass" type="password" autocomplete="current-password" minlength="6" placeholder="6 caractères minimum">
+    <button class="btn primary" id="login-btn" value="in">Se connecter</button>
+    <button class="btn" id="signup-btn" value="up">Créer mon compte</button>
+    <button type="button" class="signout" id="link-btn">Mot de passe oublié ? Recevoir un lien par e-mail</button>
   </form>
   <p class="msg" id="login-msg" hidden></p>
 </section>
@@ -42,7 +46,11 @@
   <main id="app"></main>
 </div>
 <div class="toast" id="toast" hidden></div>
-<p style="text-align:center;margin:40px 0 0"><button class="signout" id="signout">Se déconnecter</button></p>
+<form class="setpass" id="setpass-form">
+  <label for="setpass" class="status">Mot de passe pour vous connecter sur un autre appareil</label>
+  <div><input id="setpass" type="password" autocomplete="new-password" minlength="6" required placeholder="6 caractères minimum"><button class="btn" id="setpass-btn">Enregistrer</button></div>
+</form>
+<p style="text-align:center;margin:24px 0 0"><button class="signout" id="signout">Se déconnecter</button></p>
 </div>
 <script src="/vendor/supabase-2.45.4.js"></script>
 <script src="/config.js"></script>
