@@ -154,8 +154,8 @@ function vDetail(){
     <div class="facts">${(r.meta||[]).map(m=>`<div><b>${esc(m[0])}</b>${esc(m[1])}</div>`).join('')}</div>
     <h2>Préparation</h2>${steps||'<p class="status">Pas d’étapes notées.</p>'}
     ${(r.notes||[]).map(n=>`<p class="note">${esc(n)}</p>`).join('')}${r.source?`<p class="note">${esc(r.source)}</p>`:''}
-    <div class="actions" style="margin-top:28px"><button class="btn" data-act="editr">Modifier</button><button class="btn danger" data-act="askdel">Supprimer</button></div>
-    ${S.confirmDel?`<div class="confirm" style="margin-top:12px"><span>Supprimer « ${esc(r.title)} » pour vous deux ?</span><button class="btn danger" data-act="del">Oui, supprimer</button><button class="btn ghost" data-act="nodel">Annuler</button></div>`:''}
+    <div class="actions" style="margin-top:28px"><button class="btn" data-act="editr">Modifier</button>${window.Social&&Social.canCopy()?'<button class="btn" data-act="copyto">Copier vers un autre groupe</button>':''}<button class="btn danger" data-act="askdel">Supprimer</button></div>
+    ${S.confirmDel?`<div class="confirm" style="margin-top:12px"><span>Supprimer « ${esc(r.title)} » pour tout le groupe ?</span><button class="btn danger" data-act="del">Oui, supprimer</button><button class="btn ghost" data-act="nodel">Annuler</button></div>`:''}
   </div></div>`;
 }
 function vMenu(){
@@ -203,12 +203,15 @@ function render(){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.view?'page':'false'));
   const mc=Object.keys(S.menu).filter(id=>S.recipes[id]).length; $('#b-menu').textContent=mc||'';
   const sl=S.ready?shoppingList():[]; const left=sl.filter(i=>!S.checked[i.k]).length; $('#b-courses').textContent=left||'';
-  const ae=document.activeElement, fid=ae&&ae.id, sel=fid&&ae.selectionStart;
+  if(window.Social) $('#b-social').textContent=Social.badge();
+  const ae=document.activeElement, fid=ae&&ae.id, sel=fid&&ae.selectionStart, val=ae&&ae.value;
   if(v==='edit'&&$('#ef')) return; // ne pas effacer un formulaire en cours
-  $('#app').innerHTML=v==='edit'?vEdit():v==='detail'?vDetail():v==='menu'?vMenu():v==='courses'?vCourses():vRecettes();
-  if(fid==='q'||fid==='xt'){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
+  if(v==='social'&&$('#s-newgroup')&&Social.busy()) return;
+  $('#app').innerHTML=v==='edit'?vEdit():v==='detail'?vDetail():v==='menu'?vMenu():v==='courses'?vCourses():v==='social'?Social.html():vRecettes();
+  if(['q','xt','msg','s-add-in'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
+  if(v==='social') Social.after();
 }
-function go(view){S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;render();scrollTo(0,0)}
+function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;render();scrollTo(0,0)}
 
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
@@ -225,6 +228,7 @@ document.addEventListener('click',async e=>{
   if(a==='new'){S.edit={id:null};S.detail=null;render();scrollTo(0,0);return}
   if(a==='editr'){S.edit={id:S.detail};render();scrollTo(0,0);return}
   if(a==='canceledit'){S.edit=null;render();return}
+  if(a==='copyto'){Social.copyTo(S.detail,S.recipes[S.detail]);return}
   if(a==='askdel'){S.confirmDel=true;render();return}
   if(a==='nodel'){S.confirmDel=false;render();return}
   if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}

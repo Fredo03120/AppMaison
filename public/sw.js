@@ -1,7 +1,7 @@
 /* Garde l'appli et les photos en cache pour qu'elle s'ouvre vite, même avec peu de réseau.
    Les données (Supabase) passent toujours par le réseau. */
-const VERSION = 'v6';
-const SHELL = ['/', '/index.html', '/style.css', '/app.js', '/shim.js', '/start.js', '/config.js',
+const VERSION = 'v7';
+const SHELL = ['/', '/index.html', '/style.css', '/app.js', '/shim.js', '/start.js', '/social.js', '/config.js',
   '/vendor/supabase-2.45.4.js', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', e => {

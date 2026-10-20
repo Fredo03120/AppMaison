@@ -156,7 +156,62 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .acct-x{flex:none;border:0;background:none;color:var(--muted);width:40px;height:40px;display:grid;place-items:center;border-radius:50%;cursor:pointer}
 .acct form{display:flex;flex-direction:column;gap:6px}
 .acct-row{display:flex;gap:8px}
-.acct-row input{flex:1;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:999px;background:var(--bg);padding:0 16px;font-size:16px;color:var(--ink)}
+.acct form>input,.acct-row input{flex:1;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:999px;background:var(--bg);padding:0 16px;font-size:16px;color:var(--ink)}
 .acct-since{margin:0;color:var(--muted);font-size:13px}
 .acct-out{color:var(--danger)}
 .acct-msg{margin:0;background:var(--accent-soft);border-radius:var(--r);padding:10px 14px;font-size:14px}
+
+/* Carnet ouvert (en-tête) */
+.carnet-btn{all:unset;cursor:pointer;display:flex;width:max-content;align-items:center;gap:4px;font-family:var(--body);font-size:13px;color:var(--muted);letter-spacing:0;margin-top:2px;border-radius:6px}
+.carnet-btn .icon{width:15px;height:15px}
+.carnet-btn:hover{color:var(--ink)}
+.pick{display:flex;flex-direction:column;gap:6px}
+.pick .s-row[aria-current="true"]{background:var(--accent-soft)}
+
+/* Social */
+.s-title{font-size:28px;margin:0 0 14px}
+.s-me{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.s-me>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.s-me b{font-size:18px;overflow-wrap:anywhere}
+.s-note{background:var(--accent-soft);border-radius:var(--r);padding:10px 14px;margin:-6px 0 16px;font-size:14px}
+.s-sec{margin-top:22px}
+.s-sec h3{font-family:var(--body);font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.s-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.s-head h3{margin:0}
+.s-row{display:flex;align-items:center;gap:12px;width:100%;padding:10px 8px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;font:inherit;border-radius:0}
+.pick .s-row{border:1px solid var(--line);border-radius:var(--r);cursor:pointer}
+.s-open{cursor:pointer}
+.s-open:hover{background:var(--soft)}
+.s-row .badge{flex:none}
+.s-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.s-txt b{font-weight:600}
+.s-txt b small{font-weight:400;color:var(--muted);font-size:12px}
+.s-txt span{color:var(--muted);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av{flex:none;width:40px;height:40px;border-radius:50%;background:var(--soft);color:var(--ink);font-weight:700;display:grid;place-items:center}
+.av.grp{border-radius:12px;background:var(--accent-soft)}
+.s-pick{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.s-check{border:0;padding:0;margin:0}
+.s-check legend{font-weight:600;margin-bottom:6px}
+.s-inline{color:var(--muted);text-decoration:underline;font-size:13px}
+.danger-t{color:var(--danger)}
+
+/* Chat */
+.c-top{margin-bottom:10px}
+.c-top h2{font-size:26px;margin:0 0 2px}
+.c-top .actions{margin-top:10px}
+.c-top .confirm{margin-top:10px}
+.chat{display:flex;flex-direction:column;gap:6px;padding:12px 0 8px;min-height:30vh}
+.c-empty{text-align:center;margin:40px 0}
+.c-day{align-self:center;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.c-day::first-letter{text-transform:uppercase}
+.c-msg{align-self:flex-start;max-width:min(80%,520px);background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px}
+.c-msg.mine{align-self:flex-end;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);border-radius:16px 16px 4px 16px}
+.c-msg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.c-msg time{display:block;font-size:11px;opacity:.7;text-align:right;margin-top:2px}
+.c-who{display:block;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:1px}
+.c-form{position:sticky;bottom:0;display:flex;gap:8px;align-items:flex-end;background:var(--bg);padding:10px 0 12px;border-top:1px solid var(--line)}
+.c-form textarea{flex:1;min-width:0;resize:none;min-height:44px;max-height:140px;border:1px solid var(--line);border-radius:22px;background:var(--surface);color:var(--ink);padding:11px 16px;font:inherit;font-size:16px;line-height:1.35}
+.c-form .btn{width:44px;padding:0;flex:none}
+@media (max-width:720px){ .c-form{bottom:calc(64px + env(safe-area-inset-bottom,0px))} }
+.edit .s-check label.item{display:flex;flex-direction:row;align-items:center;gap:12px;font-weight:600}
+.edit .s-check input{width:22px;height:22px;min-height:0;padding:0;flex:none;margin:0}

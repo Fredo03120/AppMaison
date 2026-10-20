@@ -8,6 +8,9 @@
   const cache = new Map();      // chemin -> données
   const listeners = new Set();  // { match(path), load(), fire() }
   let channel = null;
+  // Chaque groupe a son carnet : tous les chemins sont rangés sous g/<groupe>/.
+  let prefix = '';
+  window.setCarnet = id => { prefix = 'g/' + id + '/'; };
 
   const depth = p => p.split('/').length;
   const snap = path => {
@@ -33,7 +36,7 @@
 
   function docRef(path) {
     return {
-      id: path.split('/').pop(), path,
+      id: path.split('/').pop(), path: path.slice(prefix.length),
       async get() {
         const { data, error } = await sb.from('docs').select('data').eq('path', path).maybeSingle();
         if (error) throw fail(error);
@@ -68,9 +71,10 @@
   }
 
   function collectionRef(name) {
+    name = prefix + name;
     const inCol = p => p.startsWith(name + '/') && depth(p) === depth(name) + 1;
     return {
-      path: name,
+      path: name.slice(prefix.length),
       doc: id => docRef(name + '/' + (id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8))),
       async get() {
         const { data, error } = await sb.from('docs').select('path,data').like('path', name + '/%');
@@ -113,6 +117,6 @@
     },
   };
 
-  const db = { doc: docRef, collection: collectionRef };
+  const db = { doc: p => docRef(prefix + p), collection: collectionRef };
   window.claude = { use: async name => name === 'db' ? db : name === 'assets' ? assets : null };
 })();
