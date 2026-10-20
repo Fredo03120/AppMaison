@@ -26,8 +26,10 @@
     btn.disabled = true;
     const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
     btn.disabled = false;
-    say(error ? "L'envoi du lien a échoué. Vérifiez l'adresse et réessayez dans une minute."
-              : `Lien envoyé à ${email}. Ouvrez-le sur cet appareil pour vous connecter.`);
+    if (!error) return say(`Lien envoyé à ${email}. Ouvrez-le sur cet appareil pour vous connecter.`);
+    const limit = error.status === 429 || /rate limit|security purposes/i.test(error.message || '');
+    say(limit ? "Trop de liens envoyés d'un coup. Le service d'e-mail limite les envois : réessayez dans une heure, ou ouvrez un lien déjà reçu."
+              : `L'envoi du lien a échoué (${error.message || 'erreur inconnue'}). Vérifiez l'adresse et réessayez.`);
   });
   document.getElementById('signout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
