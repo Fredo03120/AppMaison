@@ -31,7 +31,10 @@
   });
   document.getElementById('signout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
-  sb.auth.onAuthStateChange((_evt, session) => enter(session));
+  // Supabase interdit d'appeler l'API dans ce rappel (blocage) : on le fait juste après.
+  sb.auth.onAuthStateChange((_evt, session) => { setTimeout(() => enter(session).catch(showLogin), 0); });
+
+  function showLogin() { shell.hidden = true; login.hidden = false; }
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();
