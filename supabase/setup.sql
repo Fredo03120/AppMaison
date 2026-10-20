@@ -66,7 +66,8 @@ create policy "membres envoient des photos" on storage.objects for insert to aut
 
 -- Les personnes autorisées. Pour en ajouter une : Table Editor › members.
 insert into public.members (email) values
-  ('frederic69008@gmail.com')
+  ('frederic69008@gmail.com'),
+  ('frederic03120@hotmail.fr')
 on conflict do nothing;
 
 
