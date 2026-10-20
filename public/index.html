@@ -42,11 +42,29 @@
       <button id="t-menu" data-view="menu"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 13V3M3 3v6a2 2 0 0 0 4 0V3M5 9v12M19 3c-2 2-2 6 0 8v10"/></svg>Menu <span class="badge" id="b-menu"></span></button>
       <button id="t-courses" data-view="courses"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="17" cy="20.5" r="1"/></svg>Courses <span class="badge" id="b-courses"></span></button>
     </nav>
+    <button class="acct-btn" id="acct-btn" aria-label="Mon compte"><span id="acct-init">?</span></button>
   </header>
   <main id="app"></main>
 </div>
 <div class="toast" id="toast" hidden></div>
-<p style="text-align:center;margin:40px 0 0"><button class="signout" id="signout">Se déconnecter</button></p>
+<dialog class="acct" id="acct">
+  <div class="acct-head">
+    <span class="acct-av" id="acct-av">?</span>
+    <div><h2 id="acct-name">Mon compte</h2><p id="acct-email"></p></div>
+    <button class="acct-x" id="acct-close" aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <form id="acct-name-form">
+    <label for="acct-name-in" class="status">Prénom</label>
+    <div class="acct-row"><input id="acct-name-in" autocomplete="given-name" maxlength="40" placeholder="Votre prénom"><button class="btn">Enregistrer</button></div>
+  </form>
+  <form id="acct-pass-form">
+    <label for="acct-pass-in" class="status">Nouveau mot de passe</label>
+    <div class="acct-row"><input id="acct-pass-in" type="password" autocomplete="new-password" minlength="6" required placeholder="6 caractères minimum"><button class="btn">Changer</button></div>
+  </form>
+  <p class="acct-msg" id="acct-msg" role="status" hidden></p>
+  <p class="acct-since" id="acct-since"></p>
+  <button class="btn acct-out" id="signout">Se déconnecter</button>
+</dialog>
 </div>
 <script src="/vendor/supabase-2.45.4.js"></script>
 <script src="/config.js"></script>
