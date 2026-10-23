@@ -160,7 +160,7 @@ function vRecettes(){
      return `<section class="sect"><div class="sect-h"><h2>${esc(c)}<small>${l.length} recette${l.length>1?'s':''}</small></h2>${cut?`<button class="more" data-cat="${esc(c)}">Voir tout${ICON.chev}</button>`:''}</div><div class="grid">${(cut?l.slice(0,HOME_MAX):l).map(card).join('')}</div></section>`}).join(''):`<div class="grid">${list.map(card).join('')}</div>`)
      :`<div class="empty"><h2>Aucune recette trouvée</h2><p>Essayez un autre mot, ou ajoutez-la avec « Nouvelle recette ».</p></div>`}`;
 }
-function card([id,r]){return `<article class="card"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${metaLine(r)}</span></div></button>
+function card([id,r]){return `<article class="card" data-key="${esc(id)}"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${metaLine(r)}</span></div></button>
      <button class="add" data-toggle="${esc(id)}" aria-pressed="${!!S.menu[id]}" aria-label="${S.menu[id]?'Retirer du menu':'Ajouter au menu'} : ${esc(r.title)}">${S.menu[id]?ICON.check:ICON.plus}</button></article>`;
 }
 function vDetail(){
@@ -191,7 +191,7 @@ function vMenu(){
   const ids=Object.keys(S.menu).filter(id=>S.recipes[id]);
   if(!ids.length) return `<h2 style="font-size:28px;margin-bottom:14px">Le menu</h2><div class="empty"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette pour l’ajouter. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2><button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button></div>
-  <div class="menu-list">${ids.map(id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow"><div class="thumb">${thumb(r)}</div>
+  <div class="menu-list">${ids.map(id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow" data-key="${esc(id)}"><div class="thumb">${thumb(r)}</div>
    <button class="linkbtn" data-open="${esc(id)}"><h3>${esc(r.title)}</h3><span class="status">${esc(r.cat||'')}</span></button>
    <div class="ctl"><div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span>${esc(servLabel(r,n))}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`}).join('')}</div>`;
@@ -207,7 +207,7 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -237,6 +237,49 @@ function vEdit(){
    <div class="actions"><button class="btn primary" id="f-save">Enregistrer</button><button type="button" class="btn ghost" data-act="${S.edit.id?'canceledit':'home'}">Annuler</button></div>
   </form>`;
 }
+/* Mise à jour de la page : on compare avec ce qui est affiché et on ne touche qu'à ce qui a changé.
+   Les photos, les champs en cours de saisie et la position de défilement restent en place. */
+const keyOfNode=n=>n.nodeType===1?(n.id||n.getAttribute('data-key')||''):'';
+let POOL=new Map(); // éléments identifiés de la page, réutilisables même s'ils changent de place (filtre par catégorie)
+function morph(el,html){
+  const t=document.createElement(el.tagName);t.innerHTML=html;
+  POOL=new Map();el.querySelectorAll('[data-key],[id]').forEach(n=>POOL.set(keyOfNode(n),n));
+  morphKids(el,t);
+}
+function morphKids(a,b){
+  const keyed=new Map();
+  for(const c of a.childNodes){const k=keyOfNode(c);if(k)keyed.set(k,c)}
+  let cur=a.firstChild;
+  for(const nb of [...b.childNodes]){
+    const k=keyOfNode(nb);
+    let old=k?keyed.get(k):cur;
+    if(k&&!old){const p=POOL.get(k);if(p&&!p.contains(a)){old=p;POOL.delete(k)}}
+    if(old&&k&&keyOfNode(old)!==k) old=null;
+    if(old&&!k&&keyOfNode(old)) old=null; // ne pas réutiliser un élément identifié pour un autre
+    if(old&&(old.nodeType!==nb.nodeType||old.nodeName!==nb.nodeName)) old=null;
+    if(old){ if(old!==cur) a.insertBefore(old,cur); else cur=cur.nextSibling; if(k){keyed.delete(k);POOL.delete(k)} patch(old,nb); }
+    else if(nb.nodeType===1&&nb.querySelector('[data-key]')){ // nouveau bloc : on y replace les éléments déjà affichés
+      const n=document.createElement(nb.nodeName);for(const at of nb.attributes)n.setAttribute(at.name,at.value);
+      a.insertBefore(n,cur);morphKids(n,nb);
+    }
+    else a.insertBefore(nb,cur);
+  }
+  while(cur){const n=cur.nextSibling;a.removeChild(cur);cur=n}
+}
+function patch(a,b){
+  if(a.nodeType!==1){if(a.nodeValue!==b.nodeValue)a.nodeValue=b.nodeValue;return}
+  const tag=a.nodeName;
+  // Champs : on n'écrase ce que la personne tape que si l'appli change elle-même la valeur.
+  if(tag==='INPUT'){
+    if(b.getAttribute('value')!==a.getAttribute('value'))a.value=b.getAttribute('value')??'';
+    if(a.type==='checkbox'||a.type==='radio')a.checked=b.hasAttribute('checked');
+  }
+  for(const at of [...a.attributes]) if(!b.hasAttribute(at.name)) a.removeAttribute(at.name);
+  for(const at of b.attributes) if(a.getAttribute(at.name)!==at.value) a.setAttribute(at.name,at.value);
+  if(tag==='TEXTAREA'){if(a.textContent!==b.textContent){a.textContent=b.textContent;a.value=b.textContent}return}
+  if(a.innerHTML!==b.innerHTML) morphKids(a,b);
+}
+
 function render(){
   const v=S.edit?'edit':S.detail?'detail':S.view;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.view?'page':'false'));
@@ -250,7 +293,7 @@ function render(){
   // Rien n'a changé : on garde la page telle quelle, sans recharger les photos.
   if(html!==render.last){
     const chips=$('#app .chips'), sx=chips?chips.scrollLeft:0;
-    $('#app').innerHTML=html; render.last=html;
+    morph($('#app'),html); render.last=html;
     const nc=$('#app .chips'); if(nc){nc.scrollLeft=sx;
       const on=nc.querySelector('[aria-pressed="true"]');
       if(S.centerChip&&on) nc.scrollTo({left:nc.scrollLeft+on.getBoundingClientRect().left-nc.getBoundingClientRect().left-(nc.clientWidth-on.offsetWidth)/2,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
