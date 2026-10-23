@@ -39,6 +39,7 @@
     if (cur) { window.setCarnet(cur.id); window.startApp(); }
     else { window.startApp(); }
     window.Social && window.Social.start();
+    window.Importer && window.Importer.fromShare();
     if (!prof.name) openAccount("Bienvenue ! Choisissez votre prénom : c'est ce que vos amis verront.");
   }
   window.switchCarnet = id => { store.set('carnet', id); location.reload(); };

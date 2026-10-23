@@ -217,3 +217,13 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .edit .s-check input{width:22px;height:22px;min-height:0;padding:0;flex:none;margin:0}
 .item:has(.delx){grid-template-columns:28px minmax(0,1fr) auto}
 .item .delx{align-self:center;width:36px;height:36px;min-height:0;color:var(--muted)}
+
+/* Import */
+.imp-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.imp-or::before,.imp-or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.imp-photo{cursor:pointer;width:100%}
+.acct-msg.busy{animation:imp-pulse 1.4s ease-in-out infinite}
+@keyframes imp-pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.acct-msg.busy{animation:none}}
+.imp-prev{display:flex;align-items:center;gap:12px}
+.imp-prev img{width:96px;height:72px;object-fit:cover;border-radius:8px}

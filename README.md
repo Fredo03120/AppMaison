@@ -16,6 +16,8 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
 - `supabase/setup.sql` : les deux précédents réunis, à coller en une fois.
 - `supabase/social.sql` : profils, groupes, amis et messages ; range le carnet d'origine dans le groupe « Maison ».
 
+- `api/import.js` : importer une recette depuis un lien (données schema.org de la page) ou une photo (lue par Claude). La photo et les pages sans données structurées demandent la variable `ANTHROPIC_API_KEY` dans Vercel.
+
 ## Mise en route
 
 1. **Supabase** : créez un projet sur supabase.com.
@@ -23,7 +25,7 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
    - Dans Authentication › URL Configuration, mettez l'adresse du site Vercel dans « Site URL ».
    - Dans Authentication › Sign In / Providers › Email, désactivez « Confirm email » : la création de compte se fait alors sans e-mail (le service d'e-mail gratuit n'envoie que quelques messages par heure).
    - Dans Project Settings › API, copiez l'« URL » et la clé « anon public » dans `public/config.js`.
-2. **Vercel** : importez ce dépôt GitHub sur vercel.com. Aucun réglage n'est nécessaire, `vercel.json` indique le dossier à publier.
+2. **Vercel** : importez ce dépôt GitHub sur vercel.com. `vercel.json` indique le dossier à publier. Pour l'import de photos, ajoutez la variable d'environnement `ANTHROPIC_API_KEY` (Settings › Environment Variables) puis redéployez.
 3. **Sur chaque téléphone** : ouvrez l'adresse du site, créez votre compte (ou connectez-vous) avec e-mail et mot de passe, puis :
    - iPhone (Safari) : bouton Partager › « Sur l'écran d'accueil ».
    - Android (Chrome) : menu ⋮ › « Installer l'application ».

@@ -123,6 +123,7 @@ const ICON={
  plus:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
  check:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
  back:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+ link:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
  search:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
 };
 function thumb(r){return r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:`<span class="ph" aria-hidden="true">${esc((r.title||'?')[0])}</span>`}
@@ -137,7 +138,7 @@ function vRecettes(){
     .sort((a,b)=>a[1].title.localeCompare(b[1].title,'fr'));
   const counts={};Object.values(S.recipes).forEach(r=>counts[r.cat]=(counts[r.cat]||0)+1);
   return `<div class="toolbar"><div class="search">${ICON.search}<input id="q" type="search" placeholder="Chercher une recette ou un ingrédient" aria-label="Chercher" value="${esc(S.q)}"></div>
-   <button class="btn primary" data-act="new">${ICON.plus}Nouvelle recette</button></div>
+   <button class="btn" data-act="import">${ICON.link}Importer</button><button class="btn primary" data-act="new">${ICON.plus}Nouvelle recette</button></div>
    <div class="chips" role="group" aria-label="Catégories"><button class="chip" data-cat="" aria-pressed="${!S.cat}">Toutes · ${Object.keys(S.recipes).length}</button>${CATS.filter(c=>counts[c]).map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${S.cat===c}">${esc(c)} · ${counts[c]}</button>`).join('')}</div>
    ${list.length?(!S.cat&&!q?CATS.concat(['Autres']).map(c=>{const l=list.filter(([,r])=>(CATS.includes(r.cat)?r.cat:'Autres')===c);return l.length?`<section class="sect"><h2>${esc(c)}<small>${l.length} recette${l.length>1?'s':''}</small></h2><div class="grid">${l.map(card).join('')}</div></section>`:''}).join(''):`<div class="grid">${list.map(card).join('')}</div>`)
      :`<div class="empty"><h2>Aucune recette trouvée</h2><p>Essayez un autre mot, ou ajoutez-la avec « Nouvelle recette ».</p></div>`}`;
@@ -191,13 +192,21 @@ function vCourses(){
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
    ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
+// Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
+function fromDraft(d){
+  return {title:d.title,cat:CATS.includes(d.cat)?d.cat:'Plats',ptxt:d.ptxt,img:d.img,
+    meta:[['Préparation',d.prep],['Cuisson',d.cook]].filter(x=>x[1]),
+    groups:(d.ingredients||[]).map(g=>({g:g.group||'',ing:(g.lines||[]).map(t=>({t}))})),
+    steps:d.steps||[],notes:[...(d.notes||[]),d.source].filter(Boolean)};
+}
 function vEdit(){
-  const r=S.edit.id?S.recipes[S.edit.id]:{};const g=r.groups||[];
+  const r=S.edit.id?S.recipes[S.edit.id]:S.edit.draft?fromDraft(S.edit.draft):{};const g=r.groups||[];
   const ingTxt=g.map(x=>(x.g?x.g+' :\n':'')+x.ing.map(i=>i.t).join('\n')).join('\n\n');
   const m=Object.fromEntries((r.meta||[]).map(x=>[x[0],x[1]]));
   const stepsTxt=(r.steps||[]).map(s=>s.startsWith('## ')?s.slice(3)+' :':s).join('\n');
   return `<button class="btn ghost back" data-act="${S.edit.id?'canceledit':'home'}">${ICON.back}${S.edit.id?'Retour à la recette':'Recettes'}</button>
-  <h2 style="font-size:28px;margin-bottom:16px">${S.edit.id?'Modifier la recette':'Nouvelle recette'}</h2>
+  <h2 style="font-size:28px;margin-bottom:${S.edit.draft?'6px':'16px'}">${S.edit.id?'Modifier la recette':S.edit.draft?'Recette importée':'Nouvelle recette'}</h2>
+  ${S.edit.draft?'<p class="hint" style="margin:0 0 16px">Relisez et corrigez si besoin, puis enregistrez.</p>':''}
   <form class="edit" id="ef">
    <label>Nom de la recette<input id="f-title" required value="${esc(r.title||'')}"></label>
    <div class="row2"><label>Catégorie<select id="f-cat">${CATS.map(c=>`<option ${r.cat===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>
@@ -206,6 +215,7 @@ function vEdit(){
    <label>Ingrédients <span class="help">Un par ligne, quantité en premier : « 200 g de farine », « 3 œufs ». Une ligne qui finit par « : » fait un sous-titre (ex. « Béchamel : »).</span><textarea id="f-ing">${esc(ingTxt)}</textarea></label>
    <label>Étapes <span class="help">Une étape par ligne.</span><textarea id="f-steps">${esc(stepsTxt)}</textarea></label>
    <label>Notes<textarea id="f-notes" style="min-height:90px">${esc((r.notes||[]).join('\n'))}</textarea></label>
+   ${S.edit.draft&&r.img?`<div class="imp-prev"><img src="${esc(r.img)}" alt=""><span class="help">La photo du site sera gardée.</span></div>`:''}
    ${assets?`<label>Photo <span class="help">${r.img?'Choisissez un fichier pour remplacer la photo actuelle.':'Facultatif.'}</span><input id="f-photo" type="file" accept="image/*"></label>`:''}
    <div class="actions"><button class="btn primary" id="f-save">Enregistrer</button><button type="button" class="btn ghost" data-act="${S.edit.id?'canceledit':'home'}">Annuler</button></div>
   </form>`;
@@ -238,6 +248,7 @@ document.addEventListener('click',async e=>{
   if(b.dataset.mserv){const id=b.dataset.mserv;const n=S.menu[id]+ +b.dataset.d;if(n>=1)setServ(id,n);return}
   const a=b.dataset.act;
   if(a==='home'){go('recettes');return}
+  if(a==='import'){window.Importer&&Importer.open();return}
   if(a==='new'){S.edit={id:null};S.detail=null;render();scrollTo(0,0);return}
   if(a==='editr'){S.edit={id:S.detail};render();scrollTo(0,0);return}
   if(a==='canceledit'){S.edit=null;render();return}
@@ -285,6 +296,7 @@ document.addEventListener('submit',async e=>{
     const file=$('#f-photo')&&$('#f-photo').files[0];
     const btn=$('#f-save');btn.disabled=true;btn.textContent='Enregistrement…';
     try{
+      if(!old&&S.edit.draft&&S.edit.draft.img){doc.img=S.edit.draft.img;doc.alt=title}
       if(file&&assets){const up=await assets.upload(file);doc.img=up.url;doc.alt=title}
       const id=S.edit.id||(title.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'recette')+'-'+Date.now().toString(36).slice(-4);
       await db.doc('recipes/'+id).set(doc);

@@ -59,6 +59,14 @@
     <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="pick" id="copyto-list"></div>
 </dialog>
+<dialog class="acct" id="import">
+  <div class="acct-head"><div><h2>Importer une recette</h2><p>Collez le lien d'une recette, ou prenez en photo une page de livre ou une fiche.</p></div>
+    <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <form id="imp-form" class="acct-row"><input id="imp-url" type="url" inputmode="url" placeholder="https://www.marmiton.org/…" aria-label="Lien de la recette" required><button class="btn primary">Importer</button></form>
+  <div class="imp-or"><span>ou</span></div>
+  <label class="btn imp-photo"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Prendre ou choisir une photo<input id="imp-photo" type="file" accept="image/*" hidden></label>
+  <p class="acct-msg" id="imp-msg" role="status" hidden></p>
+</dialog>
 <dialog class="acct" id="acct">
   <div class="acct-head">
     <span class="acct-av" id="acct-av">?</span>
@@ -86,6 +94,7 @@
 <script src="/shim.js"></script>
 <script src="/app.js"></script>
 <script src="/social.js"></script>
+<script src="/importer.js"></script>
 <script src="/start.js"></script>
 </body>
 </html>
