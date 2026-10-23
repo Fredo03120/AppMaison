@@ -124,10 +124,24 @@ const ICON={
  check:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
  back:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
  link:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ user:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>',
+ clock:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>',
+ chev:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
  search:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
 };
+const CAT_ICON={
+ '':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>',
+ 'Plats':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17h18M5 17a7 7 0 0 1 14 0M12 8V6.5M10.5 6.5h3"/></svg>',
+ 'Salades':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19C5 10 10 5 19 5c0 9-5 14-14 14z"/><path d="M5 19l8-8"/></svg>',
+ 'Soupes & entrées':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11h18a9 9 0 0 1-18 0zM8 7c0-1 1-1.5 1-2.5M12 7c0-1 1-1.5 1-2.5M16 7c0-1 1-1.5 1-2.5"/></svg>',
+ 'Desserts':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16v-7H4zM4 15.5c1.3 1 2.7 1 4 0s2.7-1 4 0 2.7 1 4 0 2.7-1 4 0M12 13V9M12 6.5c-.8-.8-.8-1.7 0-2.5.8.8.8 1.7 0 2.5z"/></svg>',
+ 'Petit-déj & goûter':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5v2.5M12 3.5v2.5"/></svg>',
+ 'Bases':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M8 3v3l-2 3v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9l-2-3V3M6 12h12"/></svg>',
+};
+const HOME_MAX=6; // recettes montrées par rayon sur l'accueil, « Voir tout » ouvre le rayon
 function thumb(r){return r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:`<span class="ph" aria-hidden="true">${esc((r.title||'?')[0])}</span>`}
-function metaLine(r){const m=(r.meta||[]).filter(x=>!/^Portion/.test(x[0])).map(x=>x[1]);return [r.ptxt,...m.slice(0,1)].filter(Boolean).join(' · ')}
+function metaLine(r){const m=(r.meta||[]).filter(x=>!/^Portion/.test(x[0])).map(x=>x[1]);
+  return (r.ptxt?`<span>${ICON.user}${esc(r.ptxt)}</span>`:'')+(m[0]?`<span>${ICON.clock}${esc(m[0])}</span>`:'')}
 function servLabel(r,n){if(!r.portions) return n===1?'1 fournée':n+' fournées';return (r.ptxt||'').match(/\d/)?r.ptxt.replace(/\d+(\s*à\s*\d+)?/,n):n+' personnes'}
 
 function vRecettes(){
@@ -137,13 +151,16 @@ function vRecettes(){
   const list=Object.entries(S.recipes).filter(([,r])=>(!S.cat||r.cat===S.cat)&&(!q||(r.title+' '+(r.sub||'')+' '+(r.groups||[]).flatMap(g=>g.ing.map(i=>i.t)).join(' ')).toLowerCase().includes(q)))
     .sort((a,b)=>a[1].title.localeCompare(b[1].title,'fr'));
   const counts={};Object.values(S.recipes).forEach(r=>counts[r.cat]=(counts[r.cat]||0)+1);
+  const chip=(c,label,n)=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${S.cat===c}">${CAT_ICON[c]||''}${esc(label)} · ${n}</button>`;
   return `<div class="toolbar"><div class="search">${ICON.search}<input id="q" type="search" placeholder="Chercher une recette ou un ingrédient" aria-label="Chercher" value="${esc(S.q)}"></div>
-   <button class="btn" data-act="import">${ICON.link}Importer</button><button class="btn primary" data-act="new">${ICON.plus}Nouvelle recette</button></div>
-   <div class="chips" role="group" aria-label="Catégories"><button class="chip" data-cat="" aria-pressed="${!S.cat}">Toutes · ${Object.keys(S.recipes).length}</button>${CATS.filter(c=>counts[c]).map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${S.cat===c}">${esc(c)} · ${counts[c]}</button>`).join('')}</div>
-   ${list.length?(!S.cat&&!q?CATS.concat(['Autres']).map(c=>{const l=list.filter(([,r])=>(CATS.includes(r.cat)?r.cat:'Autres')===c);return l.length?`<section class="sect"><h2>${esc(c)}<small>${l.length} recette${l.length>1?'s':''}</small></h2><div class="grid">${l.map(card).join('')}</div></section>`:''}).join(''):`<div class="grid">${list.map(card).join('')}</div>`)
+   <div class="tb-actions"><button class="btn soft" data-act="import">${ICON.link}Importer</button><button class="btn primary" data-act="new">${ICON.plus}Nouvelle recette</button></div></div>
+   <div class="chips" role="group" aria-label="Catégories">${chip('','Toutes',Object.keys(S.recipes).length)}${CATS.filter(c=>counts[c]).map(c=>chip(c,c.split(' ')[0],counts[c])).join('')}</div>
+   ${S.cat?`<div class="sect-h"><h2>${esc(S.cat)}<small>${list.length} recette${list.length>1?'s':''}</small></h2><button class="more" data-cat="">Toutes les recettes</button></div>`:''}
+   ${list.length?(!S.cat&&!q?CATS.concat(['Autres']).map(c=>{const l=list.filter(([,r])=>(CATS.includes(r.cat)?r.cat:'Autres')===c);if(!l.length)return '';const cut=c!=='Autres'&&l.length>HOME_MAX;
+     return `<section class="sect"><div class="sect-h"><h2>${esc(c)}<small>${l.length} recette${l.length>1?'s':''}</small></h2>${cut?`<button class="more" data-cat="${esc(c)}">Voir tout${ICON.chev}</button>`:''}</div><div class="grid">${(cut?l.slice(0,HOME_MAX):l).map(card).join('')}</div></section>`}).join(''):`<div class="grid">${list.map(card).join('')}</div>`)
      :`<div class="empty"><h2>Aucune recette trouvée</h2><p>Essayez un autre mot, ou ajoutez-la avec « Nouvelle recette ».</p></div>`}`;
 }
-function card([id,r]){return `<article class="card"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${esc(metaLine(r))}</span></div></button>
+function card([id,r]){return `<article class="card"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${metaLine(r)}</span></div></button>
      <button class="add" data-toggle="${esc(id)}" aria-pressed="${!!S.menu[id]}" aria-label="${S.menu[id]?'Retirer du menu':'Ajouter au menu'} : ${esc(r.title)}">${S.menu[id]?ICON.check:ICON.plus}</button></article>`;
 }
 function vDetail(){
@@ -240,7 +257,7 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
   if(b.dataset.view){go(b.dataset.view);return}
-  if(b.dataset.cat!==undefined){S.cat=b.dataset.cat;render();return}
+  if(b.dataset.cat!==undefined){S.cat=b.dataset.cat;render();if(b.classList.contains('more'))scrollTo(0,0);return}
   if(b.dataset.open){S.detail=b.dataset.open;S.edit=null;S.confirmDel=false;render();scrollTo(0,0);return}
   if(b.dataset.toggle){const id=b.dataset.toggle,r=S.recipes[id];if(S.menu[id]){setServ(id,0);toast('Retiré du menu')}else{setServ(id,(S.preview&&S.preview[id])||r.portions||1);toast('Ajouté au menu')}return}
   if(b.dataset.serv){const id=S.detail,r=S.recipes[id];const cur=S.menu[id]||(S.preview&&S.preview[id])||r.portions||1;const n=Math.max(1,cur+ +b.dataset.serv);

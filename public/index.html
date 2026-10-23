@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nos Recettes</title>
 <meta name="description" content="Le carnet de recettes partagé de la maison, avec la liste de courses.">
-<meta name="theme-color" content="#FAF9F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#FAFAF7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171715" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png" type="image/png">
@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Recettes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -36,7 +36,7 @@
 <div id="shell" hidden>
 <div class="wrap">
   <header class="top">
-    <h1>Nos Recettes<button class="carnet-btn" id="carnet-btn" aria-label="Changer de carnet"><span id="sub">Le carnet partagé de la maison</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></h1>
+    <h1><span class="brand">Nos Recettes<svg class="leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-9"/><path d="M12 12C12 7 9 4 4 4c0 5 3 8 8 8z"/><path d="M12 14c0-4.5 3-7.5 8-7.5 0 4.5-3 7.5-8 7.5z"/></svg></span><button class="carnet-btn" id="carnet-btn" aria-label="Changer de carnet"><span id="sub">Le carnet partagé de la maison</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></h1>
     <nav class="tabs" aria-label="Sections">
       <button id="t-recettes" data-view="recettes" aria-current="page"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M9 7h6M9 11h6"/></svg>Recettes</button>
       <button id="t-menu" data-view="menu"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 13V3M3 3v6a2 2 0 0 0 4 0V3M5 9v12M19 3c-2 2-2 6 0 8v10"/></svg>Menu <span class="badge" id="b-menu"></span></button>
