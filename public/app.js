@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Placard','Divers'];
-const S={recipes:{},menu:{},checked:{},extras:{},view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
+const S={recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -87,7 +87,8 @@ function shoppingList(){
     }
   }
   for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:'Divers',qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id});
-  return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')}));
+  // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
+  return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
 }
 
 /* ---------- Données partagées ---------- */
@@ -98,7 +99,7 @@ async function boot(){
   assets=await claude.use('assets').catch(()=>null);
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
   db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};S.hidden=x.hidden||{};render()});
 }
 async function upd(path,patch){
   try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
@@ -183,7 +184,8 @@ function vCourses(){
   if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   const done=items.filter(i=>S.checked[i.k]).length;
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
-  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button>`:''}</div>
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button></div>
+  ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le menu sera vidé aussi, pour tout le groupe.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
@@ -221,7 +223,7 @@ function render(){
   if(['q','xt','msg','s-add-in'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
   if(v==='social') Social.after();
 }
-function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;render();scrollTo(0,0)}
+function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;S.confirmClear=false;render();scrollTo(0,0)}
 
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
@@ -243,8 +245,20 @@ document.addEventListener('click',async e=>{
   if(a==='askdel'){S.confirmDel=true;render();return}
   if(a==='nodel'){S.confirmDel=false;render();return}
   if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
-  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
-  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone))})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
+  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
+  if(a==='rmchecked'){
+    const patch={checked:{},extras:{},hidden:{}};
+    for(const i of shoppingList()) if(S.checked[i.k]){
+      patch.checked[i.k]=false; PEND.checked[i.k]={v:false,t:Date.now()};
+      if(i.extra) patch.extras[i.extra]={...S.extras[i.extra],gone:true}; else patch.hidden[i.k]=i.qty;
+    }
+    S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};render();
+    if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
+  if(a==='askclear'){S.confirmClear=true;render();return}
+  if(a==='noclear'){S.confirmClear=false;render();return}
+  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};PEND.menu={};PEND.checked={};render();
+    if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
+  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
 document.addEventListener('change',e=>{
   const k=e.target.dataset&&e.target.dataset.k; if(!k) return;
