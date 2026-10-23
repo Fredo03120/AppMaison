@@ -97,15 +97,25 @@ async function boot(){
   if(!db){S.offline=true;render();return}
   assets=await claude.use('assets').catch(()=>null);
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
-  db.doc('state/menu').onSnapshot(d=>{const it=(d.exists&&d.data().items)||{};S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=x.checked||{};S.extras=x.extras||{};render()});
+  db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};render()});
 }
 async function upd(path,patch){
-  try{const ref=db.doc(path);const s=await ref.get();if(s.exists) await ref.update(patch); else await ref.set(patch)}
+  try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
   catch(e){toast(e&&e.code==='quota_exceeded'?'Le carnet est plein, supprimez quelques recettes.':'Enregistrement impossible, réessayez.')}
 }
-function setServ(id,n){S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)upd('state/menu',{items:{[id]:n}})}
-function toggleCheck(k,v){S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
+// Un clic local garde la main tant que le serveur ne l'a pas confirmé : sinon l'écho d'un clic
+// précédent (ou de l'autre téléphone) décoche la case une fraction de seconde après.
+const PEND={menu:{},checked:{}};
+function keepPending(pend,data){
+  const now=Date.now();
+  for(const [k,p] of Object.entries(pend)){
+    if(now-p.t>10000||(data[k]??null)===p.v||(!data[k]&&!p.v)) delete pend[k]; else data[k]=p.v;
+  }
+  return data;
+}
+function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)upd('state/menu',{items:{[id]:n}})}
+function toggleCheck(k,v){PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
 
 /* ---------- Rendu ---------- */
 const ICON={
@@ -232,8 +242,8 @@ document.addEventListener('click',async e=>{
   if(a==='askdel'){S.confirmDel=true;render();return}
   if(a==='nodel'){S.confirmDel=false;render();return}
   if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
-  if(a==='clearmenu'){S.menu={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
-  if(a==='uncheck'){S.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone))})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
+  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
+  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone))})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
 document.addEventListener('change',e=>{
   const k=e.target.dataset&&e.target.dataset.k; if(!k) return;
