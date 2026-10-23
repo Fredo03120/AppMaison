@@ -187,7 +187,7 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span></label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 function vEdit(){
   const r=S.edit.id?S.recipes[S.edit.id]:{};const g=r.groups||[];
@@ -226,6 +226,7 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
+  if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
   if(b.dataset.view){go(b.dataset.view);return}
   if(b.dataset.cat!==undefined){S.cat=b.dataset.cat;render();return}
   if(b.dataset.open){S.detail=b.dataset.open;S.edit=null;S.confirmDel=false;render();scrollTo(0,0);return}
