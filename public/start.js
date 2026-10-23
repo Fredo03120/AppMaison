@@ -126,3 +126,8 @@
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();
+
+// Apparence : clair / sombre / auto, retenu sur cet appareil.
+function markTheme(){document.querySelectorAll('[data-theme-set]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.themeSet===(window.THEME||'light'))))}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;applyTheme(b.dataset.themeSet);markTheme()});
+markTheme();

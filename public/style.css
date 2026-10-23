@@ -12,10 +12,6 @@ img{max-width:100%}
   --body:'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --r:18px;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#151815; --surface:#1F231F; --ink:#ECEFEA; --muted:#A1A89F; --line:#323830; --soft:#272C26;
-  --accent:#9DC4A3; --accent-ink:#13241A; --accent-soft:#2A3A2D; --accent-text:#A9CFAF; --danger:#E58A78;
-  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#151815; --surface:#1F231F; --ink:#ECEFEA; --muted:#A1A89F; --line:#323830; --soft:#272C26;
   --accent:#9DC4A3; --accent-ink:#13241A; --accent-soft:#2A3A2D; --accent-text:#A9CFAF; --danger:#E58A78;
@@ -262,10 +258,6 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .search input{box-shadow:0 1px 2px rgba(30,40,32,.06) inset}
 .card .add[aria-pressed="true"]{background:linear-gradient(180deg,#6A9671,var(--accent));color:var(--accent-ink)}
 .acct-btn{box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 3px 10px rgba(63,106,72,.18)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --lift:0 1px 0 rgba(255,255,255,.06) inset,0 2px 6px rgba(0,0,0,.35)}
-  :root:not([data-theme="light"]) .btn.primary,:root:not([data-theme="light"]) .chip[aria-pressed="true"]{background:linear-gradient(180deg,#B2D4B7,var(--accent));border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 3px 10px rgba(0,0,0,.4)}
-  :root:not([data-theme="light"]) .btn.soft{background:linear-gradient(180deg,#30362F,var(--soft))}}
 :root[data-theme="dark"]{--lift:0 1px 0 rgba(255,255,255,.06) inset,0 2px 6px rgba(0,0,0,.35)}
 :root[data-theme="dark"] .btn.primary,:root[data-theme="dark"] .chip[aria-pressed="true"]{background:linear-gradient(180deg,#B2D4B7,var(--accent));border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 3px 10px rgba(0,0,0,.4)}
 :root[data-theme="dark"] .btn.soft{background:linear-gradient(180deg,#30362F,var(--soft))}
@@ -275,14 +267,20 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 :root:not([data-theme="dark"]){--bg:#F6F3EE;--ink:#22302A;--line:#ECE8E1;--soft:#F1EEE8;
   --shadow:0 2px 4px rgba(60,50,30,.04),0 10px 26px rgba(60,50,30,.09);
   --lift:0 1px 0 #fff inset,0 2px 4px rgba(60,50,30,.05),0 8px 20px rgba(60,50,30,.1)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#151815;--ink:#ECEFEA;--line:#323830;--soft:#272C26;--shadow:0 1px 2px rgba(0,0,0,.3);--lift:0 1px 0 rgba(255,255,255,.06) inset,0 2px 6px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--bg:#151815;--ink:#ECEFEA;--line:#323830;--soft:#272C26;--shadow:0 1px 2px rgba(0,0,0,.3);--lift:0 1px 0 rgba(255,255,255,.06) inset,0 2px 6px rgba(0,0,0,.35)}
 .search input{background:var(--surface);border-color:var(--surface);box-shadow:var(--lift)}
 .btn.soft,.btn:not(.primary):not(.ghost){background:var(--surface);border-color:var(--surface)}
 .chip:not([aria-pressed="true"]){border-color:var(--surface)}
 .card{box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.6)}
 .card .add{background:rgba(255,255,255,.92);backdrop-filter:blur(6px)}
 @media (max-width:720px){nav.tabs{background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .card{border-color:transparent}:root:not([data-theme="light"]) .card .add{background:rgba(31,35,31,.9)}
-  :root:not([data-theme="light"]) .btn.soft,:root:not([data-theme="light"]) .btn:not(.primary):not(.ghost),:root:not([data-theme="light"]) .search input{background:var(--soft);border-color:var(--soft)}
-  :root:not([data-theme="light"]) .chip:not([aria-pressed="true"]){border-color:var(--line)}}
+:root[data-theme="dark"] .card{border-color:transparent}:root[data-theme="dark"] .card .add{background:rgba(31,35,31,.9)}
+  :root[data-theme="dark"] .btn.soft,:root[data-theme="dark"] .btn:not(.primary):not(.ghost),:root[data-theme="dark"] .search input{background:var(--soft);border-color:var(--soft)}
+  :root[data-theme="dark"] .chip:not([aria-pressed="true"]){border-color:var(--line)}
 .addrow input,.c-form textarea{background:var(--surface);border-color:var(--surface);box-shadow:var(--lift)}
+
+/* Apparence (Mon compte) */
+.theme-pick{display:flex;flex-direction:column;gap:6px}
+.seg{display:flex;background:var(--soft);border-radius:999px;padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:none;border-radius:999px;min-height:40px;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent-text);box-shadow:var(--lift)}

@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nos Recettes</title>
 <meta name="description" content="Le carnet de recettes partagé de la maison, avec la liste de courses.">
-<meta name="theme-color" content="#F6F3EE" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#171715" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F3EE" id="theme-color">
+<script>
+// Thème choisi dans « Mon compte » : clair par défaut, sombre, ou auto (comme le téléphone).
+(function(){var mq=matchMedia('(prefers-color-scheme: dark)');
+  window.applyTheme=function(t){try{if(t)localStorage.setItem('theme',t);else t=localStorage.getItem('theme')}catch(e){}
+    t=t||'light';var d=t==='dark'||(t==='auto'&&mq.matches);document.documentElement.dataset.theme=d?'dark':'light';
+    var m=document.getElementById('theme-color');if(m)m.content=d?'#151815':'#F6F3EE';window.THEME=t};
+  applyTheme();mq.addEventListener&&mq.addEventListener('change',function(){if(window.THEME==='auto')applyTheme()});})();
+</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -85,6 +92,8 @@
     <label for="acct-pass-in" class="status">Nouveau mot de passe</label>
     <div class="acct-row"><input id="acct-pass-in" type="password" autocomplete="new-password" minlength="6" required placeholder="6 caractères minimum"><button class="btn">Changer</button></div>
   </form>
+  <div class="theme-pick"><span class="status">Apparence</span>
+    <div class="seg" role="group" aria-label="Apparence"><button type="button" data-theme-set="light">Clair</button><button type="button" data-theme-set="dark">Sombre</button><button type="button" data-theme-set="auto">Auto</button></div></div>
   <p class="acct-since" id="acct-since"></p>
   <button class="btn acct-out" id="signout">Se déconnecter</button>
 </dialog>
