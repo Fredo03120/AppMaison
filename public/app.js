@@ -246,7 +246,16 @@ function render(){
   const ae=document.activeElement, fid=ae&&ae.id, sel=fid&&ae.selectionStart, val=ae&&ae.value;
   if(v==='edit'&&$('#ef')) return; // ne pas effacer un formulaire en cours
   if(v==='social'&&$('#s-newgroup')&&Social.busy()) return;
-  $('#app').innerHTML=v==='edit'?vEdit():v==='detail'?vDetail():v==='menu'?vMenu():v==='courses'?vCourses():v==='social'?Social.html():vRecettes();
+  const html=v==='edit'?vEdit():v==='detail'?vDetail():v==='menu'?vMenu():v==='courses'?vCourses():v==='social'?Social.html():vRecettes();
+  // Rien n'a changé : on garde la page telle quelle, sans recharger les photos.
+  if(html!==render.last){
+    const chips=$('#app .chips'), sx=chips?chips.scrollLeft:0;
+    $('#app').innerHTML=html; render.last=html;
+    const nc=$('#app .chips'); if(nc){nc.scrollLeft=sx;
+      const on=nc.querySelector('[aria-pressed="true"]');
+      if(S.centerChip&&on) nc.scrollTo({left:nc.scrollLeft+on.getBoundingClientRect().left-nc.getBoundingClientRect().left-(nc.clientWidth-on.offsetWidth)/2,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
+  }
+  S.centerChip=false;
   if(['q','xt','msg','s-add-in'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
   if(v==='social') Social.after();
 }
@@ -257,7 +266,7 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
   if(b.dataset.view){go(b.dataset.view);return}
-  if(b.dataset.cat!==undefined){S.cat=b.dataset.cat;render();if(b.classList.contains('more'))scrollTo(0,0);return}
+  if(b.dataset.cat!==undefined){if(S.cat===b.dataset.cat)return;S.cat=b.dataset.cat;S.centerChip=true;render();if(b.classList.contains('more'))scrollTo(0,0);return}
   if(b.dataset.open){S.detail=b.dataset.open;S.edit=null;S.confirmDel=false;render();scrollTo(0,0);return}
   if(b.dataset.toggle){const id=b.dataset.toggle,r=S.recipes[id];if(S.menu[id]){setServ(id,0);toast('Retiré du menu')}else{setServ(id,(S.preview&&S.preview[id])||r.portions||1);toast('Ajouté au menu')}return}
   if(b.dataset.serv){const id=S.detail,r=S.recipes[id];const cur=S.menu[id]||(S.preview&&S.preview[id])||r.portions||1;const n=Math.max(1,cur+ +b.dataset.serv);
