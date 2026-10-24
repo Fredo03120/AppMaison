@@ -261,13 +261,14 @@ function vDetail(){
     ${S.confirmDel?`<div class="confirm" style="margin-top:12px"><span>Supprimer « ${esc(r.title)} » pour tout le groupe ?</span><button class="btn danger" data-act="del">Oui, supprimer</button><button class="btn ghost" data-act="nodel">Annuler</button></div>`:''}
   </div></div>`;
 }
+const qin=(key,v,label)=>`<input class="qin" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" data-qin="${esc(key)}" value="${esc(v)}" aria-label="${esc(label)}" style="width:${Math.max(2,String(v).length)+1}ch">`;
 function vMenu(){
   const ids=Object.keys(S.menu).filter(id=>S.recipes[id]);
   if(!ids.length) return `<h2 style="font-size:28px;margin-bottom:14px">Le menu</h2><div class="empty"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette pour l’ajouter. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2><button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button></div>
   <div class="menu-list">${ids.map(id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow" data-key="${esc(id)}"><div class="thumb">${thumb(r)}</div>
    <button class="linkbtn" data-open="${esc(id)}"><h3>${esc(r.title)}</h3><span class="status">${esc(r.cat||'')}</span></button>
-   <div class="ctl"><div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span>${esc(servLabel(r,n))}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
+   <div class="ctl"><div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`}).join('')}</div>`;
 }
 function vCourses(){
@@ -284,7 +285,7 @@ function vCourses(){
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
    ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand)?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
-     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><b>${esc(totalText(i,S.adj[i.k]))}</b>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${adjStep(i)[0]===''?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -348,7 +349,7 @@ function patch(a,b){
   const tag=a.nodeName;
   // Champs : on n'écrase ce que la personne tape que si l'appli change elle-même la valeur.
   if(tag==='INPUT'){
-    if(b.getAttribute('value')!==a.getAttribute('value'))a.value=b.getAttribute('value')??'';
+    if(b.getAttribute('value')!==a.getAttribute('value')||(a.dataset.qin&&a!==document.activeElement&&a.value!==(b.getAttribute('value')??'')))a.value=b.getAttribute('value')??'';
     if(a.type==='checkbox'||a.type==='radio')a.checked=b.hasAttribute('checked');
   }
   for(const at of [...a.attributes]) if(!b.hasAttribute(at.name)) a.removeAttribute(at.name);
@@ -425,10 +426,22 @@ document.addEventListener('click',async e=>{
   if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
 document.addEventListener('change',e=>{
+  const qk=e.target.dataset&&e.target.dataset.qin;
+  if(qk){const v=Math.round(parseFloat(String(e.target.value).replace(',','.')));const kind=qk[0],id=qk.slice(2);
+    const undo=()=>{e.target.value=e.target.getAttribute('value')};
+    if(!(v>=0)){undo();return}
+    if(kind==='x'){const x=S.extras[id];if(!x)return;if(v<1){undo();return}const q=Math.min(v,999);S.extras={...S.extras,[id]:{...x,q}};PEND.extras[id]={v:{...x,q},t:Date.now()};render();if(db)upd('state/courses',{extras:{[id]:{...x,q}}})}
+    if(kind==='a'){const i=shoppingList().find(i=>i.k===id);if(!i)return;const n=Math.max(0,Math.min(999,v));S.adj={...S.adj,[id]:n};PEND.adj[id]={v:n,t:Date.now()};render.last=null;render();if(db)upd('state/courses',{adj:{[id]:n}})}
+    if(kind==='m'){if(v<1){undo();return}setServ(id,Math.min(v,99))}
+    return}
   const k=e.target.dataset&&e.target.dataset.k; if(!k) return;
   const v=e.target.checked; toggleCheck(k,v);
   if(v&&k.startsWith('x:')){const id=k.slice(2);setTimeout(()=>{if(S.checked[k])upd('state/courses',{extras:{[id]:{...S.extras[id],gone:true}},checked:{[k]:false}})},4000)}
 });
+// Toucher le nombre sélectionne tout : on tape directement la nouvelle valeur.
+document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.qin)setTimeout(()=>e.target.select(),0)});
+document.addEventListener('pointerup',e=>{if(e.target.dataset&&e.target.dataset.qin){e.preventDefault();e.target.select()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.qin){e.preventDefault();e.target.blur()}});
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
 document.addEventListener('submit',async e=>{
   e.preventDefault();

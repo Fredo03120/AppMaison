@@ -301,3 +301,10 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .xstep b{white-space:nowrap;font-size:14px}
 .xstep.solo{background:none;padding:0}
 .item .q.tot{font-weight:800;color:var(--accent-text)}
+
+/* Quantité tapée au clavier entre − et + */
+.qin{border:0;background:transparent;text-align:center;font:inherit;font-weight:800;font-size:15px;color:inherit;padding:4px 2px;border-radius:8px;min-width:3ch;font-variant-numeric:tabular-nums}
+.qin:focus{background:var(--surface);outline:2px solid var(--accent);outline-offset:0}
+.servings .sv{display:inline-flex;align-items:center;gap:2px;justify-content:center}
+.servings .sv .qin{font-weight:700;font-size:16px}
+.plusin{display:inline-flex;align-items:center;font-weight:800;color:var(--accent-text);white-space:nowrap}.plusin .qin{color:inherit;margin-left:-2px}
