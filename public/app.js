@@ -110,7 +110,15 @@ function qtyText(e){
 // « En plus » d'un ingrédient de recette : la quantité de la recette reste affichée à côté.
 function adjStep(e){const f=e.qs.g!=null?'g':e.qs.ml!=null?'ml':e.qs['']!=null||!Object.keys(e.qs).length?'':Object.keys(e.qs)[0];
   return [f,f==='g'||f==='ml'?100:1]}
-function totalText(e,n){const [f,st]=adjStep(e);return qtyText({...e,qs:{...e.qs,[f]:(e.qs[f]||0)+n*st}}).replace(/^≈ /,'')}
+function handQs(e,qs={}){qs={...qs};for(const h of e.hand||[]){const [f,m]=unitFam(h.u);qs[f]=(qs[f]||0)+h.q*m}return qs}
+function totalText(e,n){const [f,st]=adjStep(e);const qs=handQs(e,e.qs);if(n)qs[f]=(qs[f]||0)+n*st;return qtyText({...e,qs}).replace(/^≈ /,'')}
+// « 1 dans la recette · 3 ajoutés à la main · Bœuf »
+function detailLine(i){
+  const parts=[i.qty?i.qty+' dans la recette':'Dans la recette'];
+  if(i.hand){const t=qtyText({...i,qs:handQs(i)}).replace(/^≈ /,'');parts.push((t||'')+(t?' ':'')+'ajouté'+(i.hand.length>1||/^[2-9]|^\d{2}/.test(t)?'s':'')+' à la main')}
+  if(S.adj[i.k]>0) parts.push('+ '+adjText(i,S.adj[i.k])+' en plus');
+  return parts.concat(i.from).join(' · ');
+}
 function adjText(e,n){const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
 function shoppingList(){
   const map=new Map();
@@ -126,9 +134,13 @@ function shoppingList(){
       if(it.q==null) e.bare=true; else {const [fam,mul]=unitFam(it.u||'');e.qs[fam]=(e.qs[fam]||0)+it.q*mul*f}
     }
   }
-  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id,xq:x.q||1});
+  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone){
+    // Même article qu'une recette (« Oignon » tapé à la main, oignon dans le bœuf) : une seule ligne avec le total.
+    const it=parseLine(x.t).items[0], e=map.get(keyOf(it.n));
+    if(e&&!e.extra){(e.hand=e.hand||[]).push({id,q:(it.q??1)*(x.q||1),u:it.u||''});continue}
+    map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id,xq:x.q||1})}
   // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
-  return [...map.values()].map(e=>({...e,qty:qtyText(e),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
+  return [...map.values()].map(e=>({...e,qty:qtyText(e),from:[...e.from].join(', ')})).filter(e=>e.extra||e.hand||S.hidden[e.k]!==e.qty);
 }
 
 /* ---------- Suggestions à la saisie d'un article ---------- */
@@ -264,8 +276,8 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&S.adj[i.k]>0?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]))}</span><span class="from">${i.qty?esc(i.qty)+' dans la recette':'+ '+esc(adjText(i,S.adj[i.k]))+' en plus de la recette'} · ${esc(i.from)}</span>`
-     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><b>${esc(totalText(i,S.adj[i.k]))}</b>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand)?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
+     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><b>${esc(totalText(i,S.adj[i.k]))}</b>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -365,7 +377,9 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
-  if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
+  if(b.dataset.delx){e.preventDefault();const patch={extras:{},checked:{}};
+    for(const id of b.dataset.delx.split(',')){const x=S.extras[id];if(!x)continue;patch.extras[id]={...x,gone:true};patch.checked['x:'+id]=false}
+    S.extras={...S.extras,...patch.extras};render();if(db)upd('state/courses',patch);toast('Article supprimé');return}
   if(b.dataset.adj){e.preventDefault();const k=b.dataset.adj,n=Math.max(0,(S.adj[k]||0)+ +b.dataset.d);if(n===(S.adj[k]||0))return;
     S.adj={...S.adj,[k]:n};render();if(db)upd('state/courses',{adj:{[k]:n}});return}
   if(b.dataset.xq){e.preventDefault();const id=b.dataset.xq,x=S.extras[id];if(!x)return;const q=Math.max(1,(x.q||1)+ +b.dataset.d);if(q===(x.q||1))return;
@@ -393,7 +407,7 @@ document.addEventListener('click',async e=>{
     const patch={checked:{},extras:{},hidden:{},adj:{}};
     for(const i of shoppingList()) if(S.checked[i.k]){
       patch.checked[i.k]=false; PEND.checked[i.k]={v:false,t:Date.now()};
-      if(i.extra) patch.extras[i.extra]={...S.extras[i.extra],gone:true}; else {patch.hidden[i.k]=i.qty;if(S.adj[i.k])patch.adj[i.k]=0}
+      if(i.extra) patch.extras[i.extra]={...S.extras[i.extra],gone:true}; else {patch.hidden[i.k]=i.qty;if(S.adj[i.k])patch.adj[i.k]=0;for(const h of i.hand||[])patch.extras[h.id]={...S.extras[h.id],gone:true}}
     }
     S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};S.adj={...S.adj,...patch.adj};render();
     if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
