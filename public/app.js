@@ -1,5 +1,5 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
-const SHOP_ORDER=['Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Placard','Divers'];
+const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
 const S={recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
@@ -35,12 +35,27 @@ const CATW=[
  ['Viandes & poissons','bœuf,boeuf,veau,porc,poulet,lardon,jambon,saucisse,viande,dinde,canard,chorizo,poisson,saumon,thon,crevette,cabillaud,osso bucco,os à moelle,gîte,paleron,agneau,merguez'.split(',')],
  ['Crèmerie & fromages','beurre,lait,crème,œuf,oeuf,jaune,fromage,emmental,gruyère,comté,parmesan,mozzarella,reblochon,mascarpone,ricotta,yaourt,feta,chèvre,pecorino,gorgonzola,cheddar,faisselle,margarine,levure fraîche,gnocchis frais,pâte brisée,pâte feuilletée,raclette,camembert'.split(',')],
 ];
-function category(name){
+// Rayons surtout utiles pour les articles ajoutés à la main ; testés après les rayons ci-dessus.
+const CATW2=[
+ ['Boulangerie','pain,baguette,brioche,croissant,pain au chocolat,chocolatine,viennoiserie,biscotte,pain de mie,ficelle,tradition,galette des rois,fougasse,wrap,tortilla'.split(',')],
+ ['Surgelés','surgelé,surgelée,glaces,crème glacée,glace vanille,glace au chocolat,frites,poisson pané,pizza surgelée,bâtonnets de poisson,nuggets'.split(',')],
+ ['Boissons','eau,eaux,jus,soda,coca,limonade,sirop,bière,vin,cidre,champagne,whisky,rhum,apéritif,lait d\'amande'.split(',')],
+ ['Hygiène & beauté','gel douche,savon,shampoing,shampooing,après-shampoing,dentifrice,brosse à dents,brosses à dents,déodorant,coton,cotons,rasoir,mousse à raser,crème hydratante,protections,tampons,serviettes hygiéniques,mouchoirs,crème solaire,maquillage,démaquillant'.split(',')],
+ ['Entretien & maison','papier toilette,pq,essuie-tout,sopalin,liquide vaisselle,pastilles,tablettes lave-vaisselle,lessive,adoucissant,éponge,sacs poubelle,sac poubelle,papier alu,papier aluminium,film étirable,papier cuisson,javel,nettoyant,produit,désodorisant,ampoule,piles,pile,allumettes,bougies,sacs congélation,lingettes ménagères,serpillère'.split(',')],
+ ['Bébé & animaux','couches,lingettes,lait infantile,petits pots,croquettes,pâtée,litière,friandises chien,friandises chat'.split(',')],
+ ['Viandes & poissons','steak,escalope,côte,côtes,rôti,filet mignon,cordon bleu,saucisson,pâté,rillettes,knacki,blanc de poulet,cuisse,cuisses,moules,surimi'.split(',')],
+ ['Épicerie','vinaigre,pâtes,spaghetti,tagliatelle,penne,riz,semoule,lentilles,pois chiches,quinoa,café,thé,tisane,chocolat,cacao,céréales,muesli,confiture,miel,pâte à tartiner,nutella,biscuit,gâteaux,compote,sauce,conserve,moutarde,mayonnaise,ketchup,cornichons,olives,chips,apéro,bonbons,épices,levure,maïs,thon'.split(',')],
+];
+// Article tapé à la main : « 6 yaourts » → rayon des yaourts ; le sel ajouté exprès s'achète en épicerie.
+function extraCat(t){const it=parseLine(t).items[0];const c=category(it.n.toLowerCase(),'Divers');return c==='Placard'?'Épicerie':c}
+function category(name,fallback='Épicerie'){
   const n=name.toLowerCase();
   if(/^(lait de coco|lait d'avoine|tomates concassées|pulpe|coulis|concentré|bouillon|noix de muscade|cerneaux|noix de pécan)/.test(n)) return 'Épicerie';
   for(const [c,,words] of CATW.filter(x=>x[0]==='Placard')) if(words.includes(n)) return c;
   for(const [c,words] of CATW.slice(1)) for(const w of words){ if(new RegExp("(^|[\\s'-])"+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(n)) return c; }
-  return 'Épicerie';
+  // Mots entiers ici (au pluriel près) : « vin » ne doit pas attraper « vinaigre ».
+  for(const [c,words] of CATW2) for(const w of words){ if(new RegExp("(^|[\\s'-])"+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"[sx]?($|[\\s'-,])").test(n)) return c; }
+  return fallback;
 }
 function parseLine(line){
   const t=line.trim().replace(/\s+/g,' ');
@@ -86,7 +101,7 @@ function shoppingList(){
       if(it.q==null) e.bare=true; else {const [fam,mul]=unitFam(it.u||'');e.qs[fam]=(e.qs[fam]||0)+it.q*mul*f}
     }
   }
-  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:'Divers',qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id});
+  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id});
   // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
   return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
 }
