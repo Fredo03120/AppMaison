@@ -166,7 +166,7 @@ async function boot(){
   assets=await claude.use('assets').catch(()=>null);
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
   db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};S.hidden=x.hidden||{};S.adj=x.adj||{};render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});render()});
 }
 async function upd(path,patch){
   try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
@@ -174,15 +174,22 @@ async function upd(path,patch){
 }
 // Un clic local garde la main tant que le serveur ne l'a pas confirmé : sinon l'écho d'un clic
 // précédent (ou de l'autre téléphone) décoche la case une fraction de seconde après.
-const PEND={menu:{},checked:{}};
+const PEND={menu:{},checked:{},adj:{},extras:{}};
+const same=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+// Clics rapides sur − / + : on n'envoie que la dernière valeur, un court instant après le dernier clic.
+const LATER={};
+function sendLater(key,fn){if(LATER[key])clearTimeout(LATER[key].t);LATER[key]={fn,t:setTimeout(()=>{delete LATER[key];fn()},350)}}
+function cancelLater(){for(const k in LATER){clearTimeout(LATER[k].t);delete LATER[k]}}
+// L'appli passe en arrière-plan : on envoie tout de suite ce qui attendait.
+document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const k in LATER){const {fn,t}=LATER[k];clearTimeout(t);delete LATER[k];fn()}});
 function keepPending(pend,data){
   const now=Date.now();
   for(const [k,p] of Object.entries(pend)){
-    if(now-p.t>10000||(data[k]??null)===p.v||(!data[k]&&!p.v)) delete pend[k]; else data[k]=p.v;
+    if(now-p.t>10000||same(data[k],p.v)||(!data[k]&&!p.v)) delete pend[k]; else data[k]=p.v;
   }
   return data;
 }
-function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)upd('state/menu',{items:{[id]:n}})}
+function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',{items:{[id]:n}})})}
 function toggleCheck(k,v){PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
 
 /* ---------- Rendu ---------- */
@@ -381,9 +388,9 @@ document.addEventListener('click',async e=>{
     for(const id of b.dataset.delx.split(',')){const x=S.extras[id];if(!x)continue;patch.extras[id]={...x,gone:true};patch.checked['x:'+id]=false}
     S.extras={...S.extras,...patch.extras};render();if(db)upd('state/courses',patch);toast('Article supprimé');return}
   if(b.dataset.adj){e.preventDefault();const k=b.dataset.adj,n=Math.max(0,(S.adj[k]||0)+ +b.dataset.d);if(n===(S.adj[k]||0))return;
-    S.adj={...S.adj,[k]:n};render();if(db)upd('state/courses',{adj:{[k]:n}});return}
+    S.adj={...S.adj,[k]:n};PEND.adj[k]={v:n,t:Date.now()};render();if(db)sendLater('a:'+k,()=>{PEND.adj[k]&&(PEND.adj[k].t=Date.now());upd('state/courses',{adj:{[k]:n}})});return}
   if(b.dataset.xq){e.preventDefault();const id=b.dataset.xq,x=S.extras[id];if(!x)return;const q=Math.max(1,(x.q||1)+ +b.dataset.d);if(q===(x.q||1))return;
-    S.extras={...S.extras,[id]:{...x,q}};render();if(db)upd('state/courses',{extras:{[id]:{...x,q}}});return}
+    S.extras={...S.extras,[id]:{...x,q}};PEND.extras[id]={v:{...x,q},t:Date.now()};render();if(db)sendLater('x:'+id,()=>{PEND.extras[id]&&(PEND.extras[id].t=Date.now());upd('state/courses',{extras:{[id]:{...x,q}}})});return}
   if(b.dataset.sugg){const x=$('#xt');if(x){x.value='';x.focus()}addExtra(b.dataset.sugg);toast(b.dataset.sugg+' ajouté');return}
   if(b.dataset.view){go(b.dataset.view);return}
   if(b.dataset.cat!==undefined){if(S.cat===b.dataset.cat)return;S.cat=b.dataset.cat;S.centerChip=true;render();if(b.classList.contains('more'))scrollTo(0,0);return}
@@ -402,7 +409,7 @@ document.addEventListener('click',async e=>{
   if(a==='askdel'){S.confirmDel=true;render();return}
   if(a==='nodel'){S.confirmDel=false;render();return}
   if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
-  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
+  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};cancelLater();render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
   if(a==='rmchecked'){
     const patch={checked:{},extras:{},hidden:{},adj:{}};
     for(const i of shoppingList()) if(S.checked[i.k]){
@@ -413,7 +420,7 @@ document.addEventListener('click',async e=>{
     if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
-  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};render();
+  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
     if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{},adj:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
   if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
