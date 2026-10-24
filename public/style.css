@@ -311,6 +311,6 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 
 /* Icônes des articles et des rayons */
 .item .ico{display:inline-grid;place-items:center;width:30px;height:30px;margin:-4px 8px -4px 0;border-radius:10px;background:var(--soft);font-size:17px;line-height:1;vertical-align:middle}
-.item .from{margin-left:38px}
+
 .item.done .ico{opacity:.45;filter:grayscale(1)}
 .shop h2 .aico{display:inline-grid;place-items:center;width:34px;height:34px;margin-right:10px;border-radius:12px;background:var(--accent-soft);font-size:19px;vertical-align:middle}
