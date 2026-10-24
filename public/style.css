@@ -300,3 +300,4 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .item .plus{display:inline-block;margin-left:4px;font-size:13px;font-weight:700;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:0 8px}
 .xstep b{white-space:nowrap;font-size:14px}
 .xstep.solo{background:none;padding:0}
+.item .q.tot{font-weight:800;color:var(--accent-text)}
