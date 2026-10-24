@@ -120,6 +120,27 @@ function detailLine(i){
   return parts.concat(i.from).join(' · ');
 }
 function adjText(e,n){const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
+// Petite icône devant chaque article : d'abord l'aliment, sinon celle du rayon.
+const AISLE_ICON={'Boulangerie':'🥖','Fruits & légumes':'🥬','Viandes & poissons':'🥩','Crèmerie & fromages':'🧀','Épicerie':'🥫','Boissons':'🧃','Surgelés':'🧊','Hygiène & beauté':'🧴','Entretien & maison':'🧽','Bébé & animaux':'🐾','Placard':'🧂','Divers':'🛒'};
+const ITEM_ICON=[['pomme de terre','🥔'],['patate','🥔'],['tomate','🍅'],['carotte','🥕'],['oignon','🧅'],['échalote','🧅'],['ail','🧄'],['champignon','🍄'],['brocoli','🥦'],['salade','🥬'],['épinard','🥬'],['chou','🥬'],['poireau','🥬'],['concombre','🥒'],['courgette','🥒'],['cornichon','🥒'],
+ ['aubergine','🍆'],['poivron','🫑'],['piment','🌶️'],['maïs','🌽'],['avocat','🥑'],['citron','🍋'],['orange','🍊'],['clémentine','🍊'],['mandarine','🍊'],['banane','🍌'],['pomme','🍎'],['poire','🍐'],['fraise','🍓'],['framboise','🍓'],['cerise','🍒'],['raisin','🍇'],['pêche','🍑'],['ananas','🍍'],['mangue','🥭'],['kiwi','🥝'],['melon','🍈'],['pastèque','🍉'],['noix de coco','🥥'],['lait de coco','🥥'],['noix de muscade','🧂'],
+ ['persil','🌿'],['basilic','🌿'],['coriandre','🌿'],['menthe','🌿'],['thym','🌿'],['romarin','🌿'],['ciboulette','🌿'],['cerfeuil','🌿'],['bouquet garni','🌿'],['laurier','🌿'],['herbes','🌿'],['gingembre','🫚'],['haricot','🫘'],['lentille','🫘'],['pois chiche','🫘'],['petits pois','🫛'],['olive','🫒'],['cacahuète','🥜'],['amande','🌰'],['noisette','🌰'],['noix','🌰'],['châtaigne','🌰'],
+ ['pain','🍞'],['baguette','🥖'],['croissant','🥐'],['brioche','🍞'],['biscotte','🍞'],['wrap','🫓'],['tortilla','🫓'],['crêpe','🥞'],['gaufre','🧇'],
+ ['bœuf','🥩'],['boeuf','🥩'],['steak','🥩'],['veau','🥩'],['agneau','🥩'],['porc','🥩'],['côte','🥩'],['rôti','🥩'],['poulet','🍗'],['dinde','🍗'],['canard','🍗'],['cuisse','🍗'],['lardon','🥓'],['bacon','🥓'],['jambon','🥓'],['saucisse','🌭'],['merguez','🌭'],['chorizo','🌭'],['saucisson','🌭'],
+ ['saumon','🐟'],['thon','🐟'],['cabillaud','🐟'],['poisson','🐟'],['crevette','🦐'],['moule','🦪'],['huître','🦪'],['surimi','🦀'],
+ ['œuf','🥚'],['oeuf','🥚'],['lait','🥛'],['crème','🥛'],['yaourt','🥛'],['beurre','🧈'],['fromage','🧀'],['emmental','🧀'],['gruyère','🧀'],['comté','🧀'],['parmesan','🧀'],['mozzarella','🧀'],['chèvre','🧀'],['feta','🧀'],['raclette','🧀'],['camembert','🧀'],['reblochon','🧀'],['mascarpone','🧀'],['ricotta','🧀'],
+ ['pâtes','🍝'],['pâte brisée','🥧'],['pâte feuilletée','🥧'],['pâte sablée','🥧'],['spaghetti','🍝'],['tagliatelle','🍝'],['penne','🍝'],['lasagne','🍝'],['gnocchi','🍝'],['riz','🍚'],['semoule','🍚'],['quinoa','🍚'],['farine','🌾'],['sucre','🍬'],['sel','🧂'],['poivre','🧂'],['épice','🧂'],['cannelle','🧂'],['curry','🧂'],['paprika','🧂'],['cumin','🧂'],['muscade','🧂'],['vanille','🧂'],['levure','🧂'],
+ ['huile','🫒'],['vinaigre','🍶'],['moutarde','🥫'],['mayonnaise','🥫'],['ketchup','🥫'],['sauce','🥫'],['bouillon','🥫'],['conserve','🥫'],['concassée','🥫'],['coulis','🥫'],['pulpe','🥫'],['miel','🍯'],['confiture','🍯'],['chocolat','🍫'],['cacao','🍫'],['pâte à tartiner','🍫'],['nutella','🍫'],['biscuit','🍪'],['gâteau','🍰'],['bonbon','🍬'],['céréale','🥣'],['muesli','🥣'],['compote','🥣'],['chips','🥔'],
+ ['café','☕'],['thé','🍵'],['tisane','🍵'],['eau','💧'],['jus','🧃'],['soda','🥤'],['coca','🥤'],['limonade','🥤'],['sirop','🧃'],['bière','🍺'],['vin','🍷'],['cidre','🍺'],['champagne','🥂'],['rhum','🥃'],['whisky','🥃'],
+ ['glace','🍦'],['frites','🍟'],['pizza','🍕'],['nuggets','🍗'],
+ ['papier toilette','🧻'],['essuie-tout','🧻'],['sopalin','🧻'],['mouchoir','🤧'],['éponge','🧽'],['liquide vaisselle','🧼'],['savon','🧼'],['lessive','🧺'],['adoucissant','🧺'],['sac poubelle','🗑️'],['sacs poubelle','🗑️'],['pile','🔋'],['ampoule','💡'],['bougie','🕯️'],['allumette','🔥'],['papier alu','🧻'],['papier cuisson','🧻'],['film','🧻'],
+ ['gel douche','🧴'],['shampoing','🧴'],['shampooing','🧴'],['crème solaire','🧴'],['déodorant','🧴'],['dentifrice','🪥'],['brosse à dents','🪥'],['rasoir','🪒'],['coton','☁️'],
+ ['couche','👶'],['lingette','👶'],['croquette','🐾'],['pâtée','🐾'],['litière','🐾']];
+function itemIcon(name,aisle){
+  const raw=name.toLowerCase().replace(/^\d+\s*/,'');let best=null;
+  for(const n of [raw,keyOf(raw)]) for(const [w,ic] of ITEM_ICON){const i=n.indexOf(w);if(i>=0&&(i===0||/[\s'’-]/.test(n[i-1]))&&(!best||i<best[1]||(i===best[1]&&w.length>best[2])))best=[ic,i,w.length]}
+  return best?best[0]:AISLE_ICON[aisle]||'🛒';
+}
 function shoppingList(){
   const map=new Map();
   for(const [id,serv] of Object.entries(S.menu)){
@@ -283,8 +304,8 @@ function vCourses(){
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le menu sera vidé aussi, pour tout le groupe.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
-   return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand)?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
+   return `<section><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="ico" aria-hidden="true">${itemIcon(i.n,i.c)}</span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand)?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
      :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${adjStep(i)[0]===''?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
