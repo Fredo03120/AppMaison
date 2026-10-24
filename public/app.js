@@ -352,35 +352,34 @@ function vMenu(){
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`}).join('')}</div>`;
 }
 /* ---------- Panier Carrefour ----------
-   /api/carrefour remplit un panier en livraison avec ce qui reste à acheter ; on finit sur carrefour.fr. */
+   Claude remplit le panier avec le connecteur officiel Carrefour (à ajouter une fois dans Claude) :
+   l'appli ouvre Claude avec la demande toute prête, ce qui reste à acheter et l'adresse de livraison. */
 function cfItems(){
   return shoppingList().filter(i=>!S.checked[i.k]&&i.c!=='Placard').map(i=>({n:i.n,
     q:i.extra?(i.xq>1?String(i.xq):''):(S.adj[i.k]>0||i.hand||packCalc(i))?totalText(i,S.adj[i.k]||0):i.qty}));
 }
-const CF_MSG={no_key:'L’envoi vers Carrefour n’est pas encore activé (réglage à faire dans Vercel).',auth:'Votre session a expiré : reconnectez-vous.',
-  carrefour:'Carrefour n’a pas pu préparer le panier. Vérifiez l’adresse, ou réessayez dans un instant.',address:'Indiquez l’adresse de livraison.'};
-async function sendCarrefour(){
+function cfPrompt(items){
+  return `Avec le connecteur Carrefour, remplis mon panier en livraison à domicile au ${S.cfAddr}.
+Pour chaque article, choisis le produit le plus courant (marque Carrefour ou marque connue, prix raisonnable) dans le format le plus proche de la quantité, et ajoute tout au panier en une fois sans me redemander. Ne commande pas : je vérifie et je paie sur carrefour.fr. À la fin, donne-moi le lien du panier, le total et ce que tu n'as pas trouvé.
+
+Liste de courses :
+${items.map(i=>'- '+i.n+(i.q?' : '+i.q:'')).join('\n')}`;
+}
+function openClaude(){
   const items=cfItems(); if(!items.length){toast('Rien à envoyer : tout est coché.');return}
-  S.cf={step:'busy',n:items.length};render();
-  try{
-    const {data}=await window.sb.auth.getSession();
-    const r=await fetch('/api/carrefour',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+(data.session&&data.session.access_token)},body:JSON.stringify({address:S.cfAddr,items})});
-    const out=await r.json().catch(()=>({error:'server'}));
-    S.cf=r.ok&&out.link?{step:'done',...out}:{step:'err',msg:CF_MSG[out.error]||'L’envoi a échoué. Réessayez dans un instant.'};
-  }catch(e){S.cf={step:'err',msg:'Pas de connexion. Réessayez quand le réseau revient.'}}
-  render();
+  const t=cfPrompt(items);
+  // Si Claude s'ouvre sans le texte, il est aussi dans le presse-papiers.
+  try{navigator.clipboard&&navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(t),'_blank','noopener');
+  S.cf={step:'sent',n:items.length};render();
 }
 function vCarrefour(){
   const c=S.cf; if(!c) return '';
   const close='<button class="btn ghost" data-act="cfclose">Fermer</button>';
-  if(c.step==='addr') return `<form class="confirm cf" id="cfaddr" style="margin-bottom:14px"><span style="flex-basis:100%">Livraison Carrefour à domicile : à quelle adresse ? Elle sera gardée pour tout le groupe.</span><input id="cfa" autocomplete="street-address" value="${esc(c.v??S.cfAddr)}" placeholder="Rue, code postal, ville" aria-label="Adresse de livraison" style="flex:1;min-width:200px"><button class="btn primary">Remplir le panier</button>${close}</form>`;
-  if(c.step==='busy') return `<div class="confirm cf" style="margin-bottom:14px" role="status"><span>Je remplis le panier Carrefour avec ${c.n} article(s)… compter une à deux minutes.</span></div>`;
-  if(c.step==='err') return `<div class="confirm cf" style="margin-bottom:14px" role="alert"><span style="flex-basis:100%">${esc(c.msg)}</span><button class="btn" data-act="carrefour">Réessayer</button><button class="btn ghost" data-act="cfaddr">Changer d’adresse</button>${close}</div>`;
-  const added=c.added||[], missing=c.missing||[];
-  return `<div class="confirm cf" style="margin-bottom:14px" role="status"><span style="flex-basis:100%"><b>Panier prêt</b> : ${added.length} produit(s)${c.total?' · '+esc(c.total):''}. Vérifiez-le et payez sur carrefour.fr.${c.min?' Minimum de commande en livraison : '+esc(c.min)+'.':''}</span>
-    ${missing.length?`<span style="flex-basis:100%">Pas trouvé : ${esc(missing.join(', '))}.</span>`:''}
-    <span style="flex-basis:100%" class="hint">Le placard (sel, huile, farine…) n’est pas envoyé.</span>
-    <a class="btn primary" href="${esc(c.link)}" target="_blank" rel="noopener">Ouvrir le panier sur carrefour.fr</a><button class="btn ghost" data-act="cfaddr">Changer d’adresse</button>${close}</div>`;
+  if(c.step==='addr') return `<form class="confirm cf" id="cfaddr" style="margin-bottom:14px"><span style="flex-basis:100%">Livraison Carrefour à domicile : à quelle adresse ? Elle sera gardée pour tout le groupe.</span><input id="cfa" autocomplete="street-address" value="${esc(c.v??S.cfAddr)}" placeholder="Rue, code postal, ville" aria-label="Adresse de livraison" style="flex:1;min-width:200px"><button class="btn primary">Continuer</button>${close}</form>`;
+  if(c.step==='sent') return `<div class="confirm cf" style="margin-bottom:14px" role="status"><span style="flex-basis:100%">Claude s’est ouvert avec ${c.n} article(s) : envoyez le message, il remplit le panier puis donne le lien carrefour.fr pour vérifier et payer. Si le message est vide, collez-le : il est copié.</span><button class="btn" data-act="cfgo">Rouvrir Claude</button>${close}</div>`;
+  const n=cfItems().length;
+  return `<div class="confirm cf" style="margin-bottom:14px"><span style="flex-basis:100%">Claude va remplir le panier Carrefour avec ${n} article(s), livré au ${esc(S.cfAddr)}. Le placard (sel, huile, farine…) n’est pas envoyé.</span><button class="btn primary" data-act="cfgo">Ouvrir Claude</button><button class="btn ghost" data-act="cfaddr">Changer d’adresse</button>${close}</div>`;
 }
 function vCourses(){
   const items=shoppingList();
@@ -532,9 +531,10 @@ document.addEventListener('click',async e=>{
     }
     S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};S.adj={...S.adj,...patch.adj};render();
     if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
-  if(a==='carrefour'){if(S.cfAddr)sendCarrefour();else{S.cf={step:'addr'};render();setTimeout(()=>$('#cfa')&&$('#cfa').focus(),0)}return}
+  if(a==='carrefour'){if(S.cfAddr){S.cf={step:'ready'};render()}else{S.cf={step:'addr'};render();setTimeout(()=>$('#cfa')&&$('#cfa').focus(),0)}return}
   if(a==='cfaddr'){S.cf={step:'addr'};render();setTimeout(()=>$('#cfa')&&$('#cfa').focus(),0);return}
   if(a==='cfclose'){S.cf=null;render();return}
+  if(a==='cfgo'){openClaude();return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
   if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
@@ -561,7 +561,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
 document.addEventListener('submit',async e=>{
   e.preventDefault();
-  if(e.target.id==='cfaddr'){const v=$('#cfa').value.trim();if(!v){toast(CF_MSG.address);return}S.cfAddr=v;if(db)upd('state/carrefour',{address:v});sendCarrefour();return}
+  if(e.target.id==='cfaddr'){const v=$('#cfa').value.trim();if(!v){toast('Indiquez l’adresse de livraison.');return}S.cfAddr=v;if(db)upd('state/carrefour',{address:v});S.cf={step:'ready'};render();return}
   if(e.target.id==='addx'){const t=$('#xt').value.trim();if(!t)return;$('#xt').value='';addExtra(t);return}
   if(e.target.id==='ef'){
     if(!db){toast('Carnet indisponible ici.');return}
