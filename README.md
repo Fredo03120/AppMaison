@@ -16,6 +16,7 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
 - `supabase/setup.sql` : les deux précédents réunis, à coller en une fois.
 - `supabase/social.sql` : profils, groupes, amis et messages ; range le carnet d'origine dans le groupe « Maison ».
 
+- `api/carrefour.js` : le bouton « Panier Carrefour » de la liste de courses. Claude passe par le connecteur officiel Carrefour pour remplir un panier en livraison et renvoie le lien qui l'ouvre sur carrefour.fr (on vérifie et on paie là-bas). Demande `ANTHROPIC_API_KEY` et `CARREFOUR_MCP_URL` (l'adresse du serveur MCP Carrefour) dans Vercel.
 - `api/import.js` : importer une recette depuis un lien (données schema.org de la page) ou une photo (lue par Claude). La photo et les pages sans données structurées demandent la variable `ANTHROPIC_API_KEY` dans Vercel.
 
 ## Mise en route
