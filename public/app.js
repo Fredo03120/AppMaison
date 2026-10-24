@@ -107,11 +107,88 @@ function qtyText(e){
   const parts=Object.entries(qs).map(([f,x])=>fmtQty(f,x)+(f===''&&Object.keys(qs).length>1?' pièce'+(x>1?'s':''):''));
   return (approx&&parts.length===1?'≈ ':'')+parts.join(' + ');
 }
+/* ---------- Conditionnements du commerce ----------
+   Ce qu'on achète vraiment : 30 g de beurre → 1 plaquette de 250 g ; 3 œufs → 1 boîte de 6.
+   [mots, unité de mesure (g, ml, '' pour les pièces), contenance, nom, pluriel, contenance écrite] */
+const PACKS=[
+ [['beurre'],'g',250,'plaquette','plaquettes','250 g'],
+ [['farine'],'g',1000,'paquet','paquets','1 kg'],
+ [['sucre glace'],'g',500,'paquet','paquets','500 g'],
+ [['sucre','sucre en poudre','sucre roux','cassonade','sucre de canne'],'g',1000,'paquet','paquets','1 kg'],
+ [['maïzena','fécule'],'g',250,'boîte','boîtes','250 g'],
+ [['poudre d\'amande','amande en poudre','amandes en poudre','poudre de noisette'],'g',125,'sachet','sachets','125 g'],
+ [['amande','noisette','noix','cerneaux de noix','pignon','noix de pécan','raisins secs'],'g',125,'sachet','sachets','125 g'],
+ [['cacao','cacao en poudre'],'g',250,'boîte','boîtes','250 g'],
+ [['chocolat','chocolat noir','chocolat au lait','chocolat blanc','chocolat pâtissier'],'g',200,'tablette','tablettes','200 g'],
+ [['pépites de chocolat'],'g',100,'sachet','sachets','100 g'],
+ [['riz','riz basmati','riz rond','riz arborio'],'g',1000,'paquet','paquets','1 kg'],
+ [['pâtes','spaghetti','tagliatelle','penne','coquillettes','fusilli','macaroni','linguine','farfalle','lasagnes'],'g',500,'paquet','paquets','500 g'],
+ [['semoule','couscous','boulgour','quinoa','polenta'],'g',500,'paquet','paquets','500 g'],
+ [['lentilles','lentilles corail','pois chiches secs','haricots secs'],'g',500,'paquet','paquets','500 g'],
+ [['pois chiches','haricots rouges','haricots blancs','maïs'],'g',400,'boîte','boîtes','400 g'],
+ [['tomates concassées','pulpe de tomate','tomates pelées'],'g',400,'boîte','boîtes','400 g'],
+ [['coulis de tomate','passata','sauce tomate'],'g',500,'bocal','bocaux','500 g'],
+ [['concentré de tomate'],'g',140,'tube','tubes','140 g'],
+ [['lait de coco','crème de coco'],'ml',400,'boîte','boîtes','40 cl'],
+ [['lait','lait entier','lait demi-écrémé'],'ml',1000,'bouteille','bouteilles','1 l'],
+ [['crème liquide','crème fleurette','crème liquide entière','crème entière'],'ml',200,'brique','briques','20 cl'],
+ [['crème fraîche','crème fraîche épaisse','crème épaisse','crème'],'ml',200,'pot','pots','20 cl'],
+ [['mascarpone'],'g',250,'pot','pots','250 g'],
+ [['ricotta'],'g',250,'pot','pots','250 g'],
+ [['fromage blanc','faisselle'],'g',500,'pot','pots','500 g'],
+ [['yaourt grec','yaourt nature'],'g',500,'pot','pots','500 g'],
+ [['gruyère râpé','emmental râpé','fromage râpé','gruyère','emmental'],'g',200,'sachet','sachets','200 g'],
+ [['parmesan'],'g',100,'morceau','morceaux','100 g'],
+ [['comté'],'g',250,'morceau','morceaux','250 g'],
+ [['mozzarella'],'g',125,'boule','boules','125 g'],
+ [['feta'],'g',200,'paquet','paquets','200 g'],
+ [['chèvre','bûche de chèvre'],'g',180,'bûche','bûches','180 g'],
+ [['lardons','lardons fumés','allumettes de lardons'],'g',200,'barquette','barquettes','200 g'],
+ [['chorizo'],'g',250,'chorizo','chorizos','250 g'],
+ [['œuf','oeuf','œufs','oeufs'],'',6,'boîte','boîtes','6'],
+ [['huile d\'olive','huile','huile de tournesol','huile neutre'],'ml',1000,'bouteille','bouteilles','1 l'],
+ [['vinaigre','vinaigre balsamique','vinaigre de vin'],'ml',500,'bouteille','bouteilles','50 cl'],
+ [['sauce soja'],'ml',250,'bouteille','bouteilles','25 cl'],
+ [['vin blanc','vin rouge','vin'],'ml',750,'bouteille','bouteilles','75 cl'],
+ [['bière'],'ml',330,'bouteille','bouteilles','33 cl'],
+ [['miel'],'g',250,'pot','pots','250 g'],
+ [['confiture'],'g',350,'pot','pots','350 g'],
+ [['moutarde'],'g',200,'pot','pots','200 g'],
+ [['mayonnaise'],'g',235,'pot','pots','235 g'],
+ [['flocons d\'avoine'],'g',500,'paquet','paquets','500 g'],
+ [['chapelure'],'g',250,'paquet','paquets','250 g'],
+ [['champignons de paris','champignons'],'g',250,'barquette','barquettes','250 g'],
+ [['tomates cerises'],'g',250,'barquette','barquettes','250 g'],
+ [['épinards','pousses d\'épinard','roquette','mâche'],'g',125,'sachet','sachets','125 g'],
+ [['framboises','myrtilles','mûres'],'g',125,'barquette','barquettes','125 g'],
+ [['fraises'],'g',250,'barquette','barquettes','250 g'],
+];
+const SPOON_G={'c. à soupe':15,'c. à café':5,'noix':10,'pincée':0.5,'pincées':0.5};
+function packOf(e){
+  const raw=e.n.toLowerCase(),k=keyOf(raw);let best=null;
+  for(const P of PACKS) for(const w of P[0]){const kw=keyOf(w);if((raw===w||k===kw||raw.startsWith(w+' ')||k.startsWith(kw+' '))&&(!best||w.length>best[1]))best=[P,w.length]}
+  return best&&best[0];
+}
+// Nombre de conditionnements pour la recette (et ce qui a été ajouté à la main, compté en conditionnements).
+function packCalc(e){
+  const P=packOf(e);if(!P)return null;const [,fam,size]=P;let need=0,extra=0;
+  const take=(f,x,hand)=>{
+    if(f===fam||(fam!==''&&(f==='g'||f==='ml')))need+=x;
+    else if(fam!==''&&f in SPOON_G)need+=x*SPOON_G[f];
+    else if(f===''&&hand)extra+=x;
+    else return false;
+    return true};
+  for(const [f,x] of Object.entries(e.qs)) if(!take(f,x,false)) return null;
+  for(const h of e.hand||[]){const [f,m]=unitFam(h.u);if(!take(f,h.q*m,true))return null}
+  return {P,n:(need>0?Math.max(1,Math.ceil(need/size-.05)):0)+extra};
+}
+function packLabel(P,n){return n+' '+(n>1?P[4]:P[3])+' de '+P[5]}
+
 // « En plus » d'un ingrédient de recette : la quantité de la recette reste affichée à côté.
-function adjStep(e){const f=e.qs.g!=null?'g':e.qs.ml!=null?'ml':e.qs['']!=null||!Object.keys(e.qs).length?'':Object.keys(e.qs)[0];
+function adjStep(e){if(packCalc(e))return ['#',1];const f=e.qs.g!=null?'g':e.qs.ml!=null?'ml':e.qs['']!=null||!Object.keys(e.qs).length?'':Object.keys(e.qs)[0];
   return [f,f==='g'||f==='ml'?100:1]}
 function handQs(e,qs={}){qs={...qs};for(const h of e.hand||[]){const [f,m]=unitFam(h.u);qs[f]=(qs[f]||0)+h.q*m}return qs}
-function totalText(e,n){const [f,st]=adjStep(e);const qs=handQs(e,e.qs);if(n)qs[f]=(qs[f]||0)+n*st;return qtyText({...e,qs}).replace(/^≈ /,'')}
+function totalText(e,n){const pc=packCalc(e);if(pc)return packLabel(pc.P,pc.n+(n||0));const [f,st]=adjStep(e);const qs=handQs(e,e.qs);if(n)qs[f]=(qs[f]||0)+n*st;return qtyText({...e,qs}).replace(/^≈ /,'')}
 // « 1 dans la recette · 3 ajoutés à la main · Bœuf »
 function detailLine(i){
   const parts=[i.qty?i.qty+' dans la recette':'Dans la recette'];
@@ -119,28 +196,9 @@ function detailLine(i){
   if(S.adj[i.k]>0) parts.push('+ '+adjText(i,S.adj[i.k])+' en plus');
   return parts.concat(i.from).join(' · ');
 }
-function adjText(e,n){const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
-// Petite icône devant chaque article : d'abord l'aliment, sinon celle du rayon.
+function adjText(e,n){const pc=packCalc(e);if(pc)return n+' '+(n>1?pc.P[4]:pc.P[3]);const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
+// Icône de chaque rayon.
 const AISLE_ICON={'Boulangerie':'🥖','Fruits & légumes':'🥬','Viandes & poissons':'🥩','Crèmerie & fromages':'🧀','Épicerie':'🥫','Boissons':'🧃','Surgelés':'🧊','Hygiène & beauté':'🧴','Entretien & maison':'🧽','Bébé & animaux':'🐾','Placard':'🧂','Divers':'🛒'};
-const ITEM_ICON=[['pomme de terre','🥔'],['patate','🥔'],['tomate','🍅'],['carotte','🥕'],['oignon','🧅'],['échalote','🧅'],['ail','🧄'],['champignon','🍄'],['brocoli','🥦'],['salade','🥬'],['épinard','🥬'],['chou','🥬'],['poireau','🥬'],['concombre','🥒'],['courgette','🥒'],['cornichon','🥒'],
- ['aubergine','🍆'],['poivron','🫑'],['piment','🌶️'],['maïs','🌽'],['avocat','🥑'],['citron','🍋'],['orange','🍊'],['clémentine','🍊'],['mandarine','🍊'],['banane','🍌'],['pomme','🍎'],['poire','🍐'],['fraise','🍓'],['framboise','🍓'],['cerise','🍒'],['raisin','🍇'],['pêche','🍑'],['ananas','🍍'],['mangue','🥭'],['kiwi','🥝'],['melon','🍈'],['pastèque','🍉'],['noix de coco','🥥'],['lait de coco','🥥'],['noix de muscade','🧂'],
- ['persil','🌿'],['basilic','🌿'],['coriandre','🌿'],['menthe','🌿'],['thym','🌿'],['romarin','🌿'],['ciboulette','🌿'],['cerfeuil','🌿'],['bouquet garni','🌿'],['laurier','🌿'],['herbes','🌿'],['gingembre','🫚'],['haricot','🫘'],['lentille','🫘'],['pois chiche','🫘'],['petits pois','🫛'],['olive','🫒'],['cacahuète','🥜'],['amande','🌰'],['noisette','🌰'],['noix','🌰'],['châtaigne','🌰'],
- ['pain','🍞'],['baguette','🥖'],['croissant','🥐'],['brioche','🍞'],['biscotte','🍞'],['wrap','🫓'],['tortilla','🫓'],['crêpe','🥞'],['gaufre','🧇'],
- ['bœuf','🥩'],['boeuf','🥩'],['steak','🥩'],['veau','🥩'],['agneau','🥩'],['porc','🥩'],['côte','🥩'],['rôti','🥩'],['poulet','🍗'],['dinde','🍗'],['canard','🍗'],['cuisse','🍗'],['lardon','🥓'],['bacon','🥓'],['jambon','🥓'],['saucisse','🌭'],['merguez','🌭'],['chorizo','🌭'],['saucisson','🌭'],
- ['saumon','🐟'],['thon','🐟'],['cabillaud','🐟'],['poisson','🐟'],['crevette','🦐'],['moule','🦪'],['huître','🦪'],['surimi','🦀'],
- ['œuf','🥚'],['oeuf','🥚'],['lait','🥛'],['crème','🥛'],['yaourt','🥛'],['beurre','🧈'],['fromage','🧀'],['emmental','🧀'],['gruyère','🧀'],['comté','🧀'],['parmesan','🧀'],['mozzarella','🧀'],['chèvre','🧀'],['feta','🧀'],['raclette','🧀'],['camembert','🧀'],['reblochon','🧀'],['mascarpone','🧀'],['ricotta','🧀'],
- ['pâtes','🍝'],['pâte brisée','🥧'],['pâte feuilletée','🥧'],['pâte sablée','🥧'],['spaghetti','🍝'],['tagliatelle','🍝'],['penne','🍝'],['lasagne','🍝'],['gnocchi','🍝'],['riz','🍚'],['semoule','🍚'],['quinoa','🍚'],['farine','🌾'],['sucre','🍬'],['sel','🧂'],['poivre','🧂'],['épice','🧂'],['cannelle','🧂'],['curry','🧂'],['paprika','🧂'],['cumin','🧂'],['muscade','🧂'],['vanille','🧂'],['levure','🧂'],
- ['huile','🫒'],['vinaigre','🍶'],['moutarde','🥫'],['mayonnaise','🥫'],['ketchup','🥫'],['sauce','🥫'],['bouillon','🥫'],['conserve','🥫'],['concassée','🥫'],['coulis','🥫'],['pulpe','🥫'],['miel','🍯'],['confiture','🍯'],['chocolat','🍫'],['cacao','🍫'],['pâte à tartiner','🍫'],['nutella','🍫'],['biscuit','🍪'],['gâteau','🍰'],['bonbon','🍬'],['céréale','🥣'],['muesli','🥣'],['compote','🥣'],['chips','🥔'],
- ['café','☕'],['thé','🍵'],['tisane','🍵'],['eau','💧'],['jus','🧃'],['soda','🥤'],['coca','🥤'],['limonade','🥤'],['sirop','🧃'],['bière','🍺'],['vin','🍷'],['cidre','🍺'],['champagne','🥂'],['rhum','🥃'],['whisky','🥃'],
- ['glace','🍦'],['frites','🍟'],['pizza','🍕'],['nuggets','🍗'],
- ['papier toilette','🧻'],['essuie-tout','🧻'],['sopalin','🧻'],['mouchoir','🤧'],['éponge','🧽'],['liquide vaisselle','🧼'],['savon','🧼'],['lessive','🧺'],['adoucissant','🧺'],['sac poubelle','🗑️'],['sacs poubelle','🗑️'],['pile','🔋'],['ampoule','💡'],['bougie','🕯️'],['allumette','🔥'],['papier alu','🧻'],['papier cuisson','🧻'],['film','🧻'],
- ['gel douche','🧴'],['shampoing','🧴'],['shampooing','🧴'],['crème solaire','🧴'],['déodorant','🧴'],['dentifrice','🪥'],['brosse à dents','🪥'],['rasoir','🪒'],['coton','☁️'],
- ['couche','👶'],['lingette','👶'],['croquette','🐾'],['pâtée','🐾'],['litière','🐾']];
-function itemIcon(name,aisle){
-  const raw=name.toLowerCase().replace(/^\d+\s*/,'');let best=null;
-  for(const n of [raw,keyOf(raw)]) for(const [w,ic] of ITEM_ICON){const i=n.indexOf(w);if(i>=0&&(i===0||/[\s'’-]/.test(n[i-1]))&&(!best||i<best[1]||(i===best[1]&&w.length>best[2])))best=[ic,i,w.length]}
-  return best?best[0]:AISLE_ICON[aisle]||'🛒';
-}
 function shoppingList(){
   const map=new Map();
   for(const [id,serv] of Object.entries(S.menu)){
@@ -305,8 +363,8 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand)?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
-     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${adjStep(i)[0]===''?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
+     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
