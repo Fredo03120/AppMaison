@@ -101,7 +101,7 @@ function shoppingList(){
       if(it.q==null) e.bare=true; else {const [fam,mul]=unitFam(it.u||'');e.qs[fam]=(e.qs[fam]||0)+it.q*mul*f}
     }
   }
-  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id});
+  for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id,xq:x.q||1});
   // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
   return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
 }
@@ -239,7 +239,7 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -340,6 +340,8 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
+  if(b.dataset.xq){e.preventDefault();const id=b.dataset.xq,x=S.extras[id];if(!x)return;const q=Math.max(1,(x.q||1)+ +b.dataset.d);if(q===(x.q||1))return;
+    S.extras={...S.extras,[id]:{...x,q}};render();if(db)upd('state/courses',{extras:{[id]:{...x,q}}});return}
   if(b.dataset.sugg){const x=$('#xt');if(x){x.value='';x.focus()}addExtra(b.dataset.sugg);toast(b.dataset.sugg+' ajouté');return}
   if(b.dataset.view){go(b.dataset.view);return}
   if(b.dataset.cat!==undefined){if(S.cat===b.dataset.cat)return;S.cat=b.dataset.cat;S.centerChip=true;render();if(b.classList.contains('more'))scrollTo(0,0);return}

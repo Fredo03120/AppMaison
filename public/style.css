@@ -234,7 +234,7 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 @media (max-width:720px){ .c-form{bottom:calc(64px + env(safe-area-inset-bottom,0px))} }
 .edit .s-check label.item{display:flex;flex-direction:row;align-items:center;gap:12px;font-weight:600}
 .edit .s-check input{width:22px;height:22px;min-height:0;padding:0;flex:none;margin:0}
-.item:has(.delx){grid-template-columns:28px minmax(0,1fr) auto}
+.item:has(.delx){grid-template-columns:28px minmax(0,1fr) auto auto}
 .item .delx{align-self:center;width:36px;height:36px;min-height:0;color:var(--muted)}
 
 /* Import */
@@ -289,3 +289,10 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .sugg{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:8px}
 .sugg .chip{min-height:38px;padding:0 14px 0 10px;font-size:14.5px}
 .sugg .chip .icon{width:16px;height:16px;color:var(--accent-text)}
+
+/* Quantité des articles ajoutés à la main */
+.xstep{align-self:center;display:flex;align-items:center;gap:2px;background:var(--soft);border-radius:999px;padding:3px}
+.xstep button{width:32px;height:32px;border:0;border-radius:50%;background:var(--surface);box-shadow:var(--lift);font-size:18px;line-height:1;color:var(--ink);display:grid;place-items:center}
+.xstep button[aria-disabled="true"]{opacity:.35;box-shadow:none}
+.xstep b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.item.done .xstep{opacity:.5}
