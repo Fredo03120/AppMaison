@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
+const S={adj:{},recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -107,6 +107,10 @@ function qtyText(e){
   const parts=Object.entries(qs).map(([f,x])=>fmtQty(f,x)+(f===''&&Object.keys(qs).length>1?' pièce'+(x>1?'s':''):''));
   return (approx&&parts.length===1?'≈ ':'')+parts.join(' + ');
 }
+// « En plus » d'un ingrédient de recette : la quantité de la recette reste affichée à côté.
+function adjStep(e){const f=e.qs.g!=null?'g':e.qs.ml!=null?'ml':e.qs['']!=null||!Object.keys(e.qs).length?'':Object.keys(e.qs)[0];
+  return [f,f==='g'||f==='ml'?100:1]}
+function adjText(e,n){const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
 function shoppingList(){
   const map=new Map();
   for(const [id,serv] of Object.entries(S.menu)){
@@ -149,7 +153,7 @@ async function boot(){
   assets=await claude.use('assets').catch(()=>null);
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
   db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};S.hidden=x.hidden||{};render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=x.extras||{};S.hidden=x.hidden||{};S.adj=x.adj||{};render()});
 }
 async function upd(path,patch){
   try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
@@ -259,7 +263,7 @@ function vCourses(){
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section><h2>${esc(c==='Placard'?'Placard':c)}<small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span></span>${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}${!i.extra&&S.adj[i.k]>0?` <span class="plus">+ ${esc(adjText(i,S.adj[i.k]))} en plus</span>`:''}<span class="from">${esc(i.from)}</span></span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><b>+${esc(adjText(i,S.adj[i.k]))}</b>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button><b>${i.xq}</b><button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -360,6 +364,8 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
+  if(b.dataset.adj){e.preventDefault();const k=b.dataset.adj,n=Math.max(0,(S.adj[k]||0)+ +b.dataset.d);if(n===(S.adj[k]||0))return;
+    S.adj={...S.adj,[k]:n};render();if(db)upd('state/courses',{adj:{[k]:n}});return}
   if(b.dataset.xq){e.preventDefault();const id=b.dataset.xq,x=S.extras[id];if(!x)return;const q=Math.max(1,(x.q||1)+ +b.dataset.d);if(q===(x.q||1))return;
     S.extras={...S.extras,[id]:{...x,q}};render();if(db)upd('state/courses',{extras:{[id]:{...x,q}}});return}
   if(b.dataset.sugg){const x=$('#xt');if(x){x.value='';x.focus()}addExtra(b.dataset.sugg);toast(b.dataset.sugg+' ajouté');return}
@@ -382,18 +388,18 @@ document.addEventListener('click',async e=>{
   if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
   if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
   if(a==='rmchecked'){
-    const patch={checked:{},extras:{},hidden:{}};
+    const patch={checked:{},extras:{},hidden:{},adj:{}};
     for(const i of shoppingList()) if(S.checked[i.k]){
       patch.checked[i.k]=false; PEND.checked[i.k]={v:false,t:Date.now()};
-      if(i.extra) patch.extras[i.extra]={...S.extras[i.extra],gone:true}; else patch.hidden[i.k]=i.qty;
+      if(i.extra) patch.extras[i.extra]={...S.extras[i.extra],gone:true}; else {patch.hidden[i.k]=i.qty;if(S.adj[i.k])patch.adj[i.k]=0}
     }
-    S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};render();
+    S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};S.adj={...S.adj,...patch.adj};render();
     if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
-  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};PEND.menu={};PEND.checked={};render();
-    if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
-  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
+  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};render();
+    if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{},adj:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
+  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
 document.addEventListener('change',e=>{
   const k=e.target.dataset&&e.target.dataset.k; if(!k) return;

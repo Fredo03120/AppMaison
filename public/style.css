@@ -235,6 +235,7 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .edit .s-check label.item{display:flex;flex-direction:row;align-items:center;gap:12px;font-weight:600}
 .edit .s-check input{width:22px;height:22px;min-height:0;padding:0;flex:none;margin:0}
 .item:has(.delx){grid-template-columns:28px minmax(0,1fr) auto auto}
+.item:has(.xstep):not(:has(.delx)){grid-template-columns:28px minmax(0,1fr) auto}
 .item .delx{align-self:center;width:36px;height:36px;min-height:0;color:var(--muted)}
 
 /* Import */
@@ -296,3 +297,6 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .xstep button[aria-disabled="true"]{opacity:.35;box-shadow:none}
 .xstep b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
 .item.done .xstep{opacity:.5}
+.item .plus{display:inline-block;margin-left:4px;font-size:13px;font-weight:700;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:0 8px}
+.xstep b{white-space:nowrap;font-size:14px}
+.xstep.solo{background:none;padding:0}
