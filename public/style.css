@@ -284,3 +284,8 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 .seg{display:flex;background:var(--soft);border-radius:999px;padding:4px;gap:4px}
 .seg button{flex:1;border:0;background:none;border-radius:999px;min-height:40px;font-weight:700;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent-text);box-shadow:var(--lift)}
+
+/* Suggestions sous « Ajouter un article » */
+.sugg{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:8px}
+.sugg .chip{min-height:38px;padding:0 14px 0 10px;font-size:14.5px}
+.sugg .chip .icon{width:16px;height:16px;color:var(--accent-text)}

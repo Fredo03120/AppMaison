@@ -91,6 +91,21 @@ function shoppingList(){
   return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
 }
 
+/* ---------- Suggestions à la saisie d'un article ---------- */
+const COMMON=('Pain,Pain de mie,Pain complet,Baguette,Brioche,Biscottes,Croissants,Lait,Lait demi-écrémé,Beurre,Œufs,Crème fraîche,Yaourts,Yaourts nature,Fromage râpé,Emmental,Comté,Mozzarella,Parmesan,Jambon,Jambon blanc,Lardons,Poulet,Steak haché,Saumon,Thon en boîte,Pâtes,Spaghetti,Riz,Semoule,Lentilles,Farine,Sucre,Sel,Poivre,Huile d\'olive,Huile de tournesol,Vinaigre,Moutarde,Mayonnaise,Ketchup,Sauce tomate,Tomates concassées,Bouillon cube,Café,Thé,Chocolat,Chocolat noir,Céréales,Confiture,Miel,Pâte à tartiner,Biscuits,Compote,Jus d\'orange,Eau,Eau gazeuse,Bière,Vin rouge,Vin blanc,Pommes,Bananes,Oranges,Citrons,Clémentines,Poires,Fraises,Raisin,Tomates,Salade,Concombre,Carottes,Pommes de terre,Oignons,Échalotes,Ail,Courgettes,Poivrons,Champignons,Avocats,Brocoli,Haricots verts,Persil,Basilic,Surgelés,Glace,Frites surgelées,Petits pois,Maïs,Papier toilette,Essuie-tout,Mouchoirs,Liquide vaisselle,Pastilles lave-vaisselle,Lessive,Adoucissant,Éponges,Sacs poubelle,Papier aluminium,Film étirable,Gel douche,Shampoing,Dentifrice,Brosses à dents,Déodorant,Coton,Couches,Lingettes,Croquettes,Litière,Piles,Ampoules').split(',');
+const plain=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/œ/g,'oe');
+function suggestions(q){
+  q=plain(q.trim()); if(q.length<2) return [];
+  const seen=new Set(), out=[];
+  const add=n=>{n=n.trim();const k=plain(n);if(!n||seen.has(k))return;seen.add(k);
+    const i=k.startsWith(q)?0:k.includes(' '+q)?1:-1; if(i>=0&&k!==q) out.push([i,k.length,n])};
+  Object.values(S.extras).forEach(x=>x&&add(x.t)); // déjà ajoutés à la main : d'abord
+  Object.values(S.recipes).forEach(r=>(r.groups||[]).forEach(g=>(g.ing||[]).forEach(i=>(i.items||[]).forEach(it=>add(it.n)))));
+  COMMON.forEach(add);
+  return out.sort((a,b)=>a[0]-b[0]||a[1]-b[1]).slice(0,6).map(x=>x[2]);
+}
+function addExtra(t){const id='x'+Date.now().toString(36);S.extras={...S.extras,[id]:{t}};S.xq='';render();if(db)upd('state/courses',{extras:{[id]:{t}}})}
+
 /* ---------- Données partagées ---------- */
 async function boot(){
   render();
@@ -198,7 +213,9 @@ function vMenu(){
 }
 function vCourses(){
   const items=shoppingList();
-  const add=`<form class="addrow" id="addx"><input id="xt" placeholder="Ajouter un article (ex. papier toilette, 6 yaourts)" aria-label="Article à ajouter"><button class="btn">${ICON.plus}Ajouter</button></form>`;
+  const sug=suggestions(S.xq||'');
+  const add=`<form class="addrow" id="addx"><input id="xt" autocomplete="off" placeholder="Ajouter un article (ex. papier toilette, 6 yaourts)" aria-label="Article à ajouter"><button class="btn">${ICON.plus}Ajouter</button>
+    ${sug.length?`<div class="sugg" role="group" aria-label="Suggestions">${sug.map(n=>`<button type="button" class="chip" data-sugg="${esc(n)}">${ICON.plus}${esc(n)}</button>`).join('')}</div>`:''}</form>`;
   if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   const done=items.filter(i=>S.checked[i.k]).length;
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
@@ -308,6 +325,7 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.delx){e.preventDefault();const id=b.dataset.delx,x=S.extras[id];S.extras={...S.extras,[id]:{...x,gone:true}};render();if(db)upd('state/courses',{extras:{[id]:{...x,gone:true}},checked:{['x:'+id]:false}});toast('Article supprimé');return}
+  if(b.dataset.sugg){const x=$('#xt');if(x){x.value='';x.focus()}addExtra(b.dataset.sugg);toast(b.dataset.sugg+' ajouté');return}
   if(b.dataset.view){go(b.dataset.view);return}
   if(b.dataset.cat!==undefined){if(S.cat===b.dataset.cat)return;S.cat=b.dataset.cat;S.centerChip=true;render();if(b.classList.contains('more'))scrollTo(0,0);return}
   if(b.dataset.open){S.detail=b.dataset.open;S.edit=null;S.confirmDel=false;render();scrollTo(0,0);return}
@@ -345,10 +363,10 @@ document.addEventListener('change',e=>{
   const v=e.target.checked; toggleCheck(k,v);
   if(v&&k.startsWith('x:')){const id=k.slice(2);setTimeout(()=>{if(S.checked[k])upd('state/courses',{extras:{[id]:{...S.extras[id],gone:true}},checked:{[k]:false}})},4000)}
 });
-document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}});
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
 document.addEventListener('submit',async e=>{
   e.preventDefault();
-  if(e.target.id==='addx'){const t=$('#xt').value.trim();if(!t)return;const id='x'+Date.now().toString(36);S.extras={...S.extras,[id]:{t}};$('#xt').value='';render();if(db)upd('state/courses',{extras:{[id]:{t}}});return}
+  if(e.target.id==='addx'){const t=$('#xt').value.trim();if(!t)return;$('#xt').value='';addExtra(t);return}
   if(e.target.id==='ef'){
     if(!db){toast('Carnet indisponible ici.');return}
     const old=S.edit.id?S.recipes[S.edit.id]:null; const oldT=new Map();(old?.groups||[]).forEach(g=>g.ing.forEach(i=>oldT.set(i.t,i)));
