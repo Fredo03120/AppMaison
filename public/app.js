@@ -87,6 +87,26 @@ function fmtQty(fam,x){
   const r=niceRound(x,fam); return fmtNum(r)+(fam?' '+plural(fam,r):'');
 }
 function factor(r,serv){return r.portions?serv/r.portions:serv}
+// Poids moyen d'une pièce, pour additionner « 2 kg » d'une recette et « 8 » d'une autre.
+const PIECE_G=[['pomme de terre',150],['patate',150],['oignon',100],['oignon rouge',100],['échalote',30],['carotte',100],['tomate',120],['tomate cerise',15],['courgette',250],['aubergine',300],['poivron',180],
+  ['concombre',350],['poireau',200],['pomme',150],['poire',170],['banane',120],['citron',100],['orange',200],['avocat',200],['navet',150],['patate douce',250],['champignon',20],['gousse',5],['ail',5],
+  ['œuf',55],['oeuf',55],['butternut',1200],['courge',1200],['potiron',1500],['brocoli',400],['chou-fleur',800],['céleri',600],['fenouil',250],['betterave',150],['mangue',350],['kiwi',80]];
+function pieceG(n){const k=n.toLowerCase();let best=null;for(const [w,g] of PIECE_G) if((k===w||k.startsWith(w+' ')||k.startsWith(w+'s'))&&(!best||w.length>best[0].length)) best=[w,g];return best&&best[1]}
+// Quantité affichée : un seul total quand c'est possible, « ≈ » si on a converti des pièces ou des cuillères.
+function qtyText(e){
+  const qs={...e.qs}; let approx=false;
+  const spoon={'c. à soupe':15,'c. à café':5};
+  const mass=qs.g!=null?'g':qs.ml!=null?'ml':null;
+  if(mass) for(const [f,ml] of Object.entries(spoon)) if(qs[f]!=null){qs[mass]+=qs[f]*ml;delete qs[f];approx=true}
+  const pg=pieceG(e.n);
+  if(qs['']!=null&&pg&&qs.g!=null){
+    if(e.qs.g>=qs['']*pg){qs.g+=qs['']*pg;delete qs['']} // on garde l'unité qui pèse le plus
+    else{qs['']+=Math.ceil(qs.g/pg-.2);delete qs.g}
+    approx=true;
+  }
+  const parts=Object.entries(qs).map(([f,x])=>fmtQty(f,x)+(f===''&&Object.keys(qs).length>1?' pièce'+(x>1?'s':''):''));
+  return (approx&&parts.length===1?'≈ ':'')+parts.join(' + ');
+}
 function shoppingList(){
   const map=new Map();
   for(const [id,serv] of Object.entries(S.menu)){
@@ -103,7 +123,7 @@ function shoppingList(){
   }
   for(const [id,x] of Object.entries(S.extras)) if(x&&!x.gone) map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id,xq:x.q||1});
   // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
-  return [...map.values()].map(e=>({...e,qty:Object.entries(e.qs).map(([f,x])=>fmtQty(f,x)).join(' + '),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
+  return [...map.values()].map(e=>({...e,qty:qtyText(e),from:[...e.from].join(', ')})).filter(e=>e.extra||S.hidden[e.k]!==e.qty);
 }
 
 /* ---------- Suggestions à la saisie d'un article ---------- */
