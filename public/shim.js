@@ -76,11 +76,12 @@
   }
 
   const depth = p => p.split('/').length;
-  const snap = path => {
+  // fromCache : la valeur vient de la copie locale (ce qu'on vient de taper), pas encore du serveur.
+  const snap = (path, fromCache) => {
     const d = cache.get(path);
-    return { id: path.split('/').pop(), exists: d !== undefined, data: () => d, metadata: { fromCache: false, hasPendingWrites: false } };
+    return { id: path.split('/').pop(), exists: d !== undefined, data: () => d, metadata: { fromCache: !!fromCache, hasPendingWrites: !!fromCache } };
   };
-  const notify = path => { for (const l of listeners) if (l.match(path)) l.fire(); };
+  const notify = (path, fromCache) => { for (const l of listeners) if (l.match(path)) l.fire(fromCache); };
   const fail = e => { const err = new Error(e && e.message || 'Erreur'); err.code = 'unavailable'; return err; };
 
   function ensureChannel() {
@@ -108,26 +109,26 @@
         return snap(path);
       },
       async set(body) {
-        cache.set(path, body); persist(); notify(path);
+        cache.set(path, body); persist(); notify(path, true);
         await write({ t: 'set', path, body });
       },
       async update(patch) {
-        cache.set(path, deepMerge(cache.get(path) || {}, patch)); persist(); notify(path);
+        cache.set(path, deepMerge(cache.get(path) || {}, patch)); persist(); notify(path, true);
         await write({ t: 'update', path, body: patch });
       },
       async delete() {
-        cache.delete(path); persist(); notify(path);
+        cache.delete(path); persist(); notify(path, true);
         await write({ t: 'delete', path });
       },
       onSnapshot(next, onErr) {
         ensureChannel();
         const l = {
           match: p => p === path,
-          fire: () => next(snap(path)),
+          fire: fc => next(snap(path, fc)),
           load: async () => { if (queue.length) return; try { await docRef(path).get(); l.fire(); } catch (e) { onErr && onErr(e); } },
         };
         listeners.add(l);
-        if (cache.has(path)) l.fire(); // copie locale d'abord
+        if (cache.has(path)) l.fire(true); // copie locale d'abord
         l.load();
         return () => listeners.delete(l);
       },

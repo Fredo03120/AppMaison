@@ -90,6 +90,16 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
   ok(await page.evaluate(() => { const c = __T.docs.find(d => d.path.endsWith('state/courses')).data; return c.checked.farine === true && Object.values(c.extras).some(x => x.t === 'Café'); }), 'retour du réseau : tout est envoyé au serveur');
   ok(await page.locator('.offline').count() === 0, 'retour du réseau : le bandeau disparaît');
 
+  // Deux clics très rapides (écho du serveur en retard) : les deux recettes restent dans le panier, les deux coches restent.
+  await page.click('[data-view="recettes"]'); await page.evaluate(() => { window.__echoDelay = 400; });
+  await page.click('[data-toggle="tarte"]'); await page.click('[data-toggle="salade"]'); await page.waitForTimeout(950);
+  ok(await page.evaluate(() => !!(S.menu.tarte && S.menu.salade)), 'rapide : deux recettes ajoutées coup sur coup restent toutes les deux dans le panier');
+  await page.click('[data-view="courses"]'); await page.waitForSelector('.shop section');
+  await page.evaluate(() => { window.__echoDelay = 400; }); await page.check('.item[data-key="œuf"] input'); await page.check('.item[data-key="lait"] input'); await page.waitForTimeout(600);
+  ok(await page.evaluate(() => S.checked["œuf"] === true && S.checked.lait === true), 'rapide : deux coches coup sur coup restent cochées');
+  await page.waitForTimeout(1500); await page.evaluate(() => { window.__echoDelay = 0; });
+  await page.click('[data-view="recettes"]'); await page.click('[data-toggle="tarte"]'); await page.click('[data-toggle="salade"]'); await page.waitForTimeout(500);
+
   // Corbeille et sauvegarde.
   await page.click('[data-view="recettes"]'); await page.click('[data-open="salade"]'); await page.click('[data-act="askdel"]'); await page.click('[data-act="del"]'); await page.waitForTimeout(300);
   ok(await page.locator('[data-open="salade"]').count() === 0, 'corbeille : la salade n’est plus dans le carnet');

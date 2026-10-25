@@ -75,6 +75,7 @@
   }
 
   const session = { user: { id: UID, email: 'fred@exemple.fr', created_at: '2026-01-01' }, access_token: 'tok' };
+  let echoN = 0;
   window.supabase = { createClient() {
     return {
       from: builder,
@@ -84,7 +85,8 @@
           const i = T.docs.findIndex(r => r.path === args.p_path);
           if (i >= 0) T.docs[i].data = deepMerge(T.docs[i].data, args.p_patch); else T.docs.push({ path: args.p_path, data: args.p_patch });
           log({ op: 'merge', path: args.p_path, patch: args.p_patch });
-          emit('docs', { eventType: 'UPDATE', new: { path: args.p_path, data: T.docs.find(r => r.path === args.p_path).data } });
+          const row = JSON.parse(JSON.stringify(T.docs.find(r => r.path === args.p_path).data));
+          setTimeout(() => emit('docs', { eventType: 'UPDATE', new: { path: args.p_path, data: row } }), window.__echoDelay ? window.__echoDelay * (++echoN) : 0);
           return { data: null, error: null };
         }
         return { data: null, error: null };

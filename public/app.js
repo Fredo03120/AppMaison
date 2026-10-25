@@ -254,7 +254,7 @@ async function boot(){
   assets=await claude.use('assets').catch(()=>null);
   // Sans réseau, la copie gardée sur le téléphone s'affiche ; « hors ligne » seulement s'il n'y a rien du tout.
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;S.offline=false;render();remindBackup()},()=>{if(!S.ready){S.offline=true;render()}});
-  db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{};const it=keepPending(PEND.menu,{...(x.items||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));
+  db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{},loc=d.metadata.fromCache;const it=keepPending(PEND.menu,{...(x.items||{})},loc);S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));
     // Ancien format : le créneau était rangé dans le menu (plan). On le déplace une fois vers la semaine.
     const old=Object.entries(x.plan||{}).filter(([,v])=>v);if(old.length){const slots={},clr={};old.forEach(([id,v])=>{(slots[v]=slots[v]||{})[id]=true;clr[id]=''});upd('state/semaine',{slots});upd('state/menu',{plan:clr})}
     render()});
@@ -265,7 +265,7 @@ async function boot(){
     if(Object.keys(mig).length)upd('state/semaine',{slots:mig});
     S.done={};Object.entries(x.done||{}).forEach(([slot,ids])=>{const l=Object.keys(ids||{}).filter(id=>ids[id]);if(l.length)S.done[slot]=Object.fromEntries(l.map(id=>[id,true]))});
     S.plan=planIndex();render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});S.always=x.always||{};render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{},loc=d.metadata.fromCache;S.checked=keepPending(PEND.checked,{...(x.checked||{})},loc);S.extras=keepPending(PEND.extras,{...(x.extras||{})},loc);S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})},loc);S.always=x.always||{};render()});
   db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';render()});
   db.doc('state/rayons').onSnapshot(d=>{S.rayons=d.exists?d.data():null;render();renderRayons()});
   db.doc('state/habituels').onSnapshot(d=>{S.habits=(d.exists&&d.data().items)||{};renderHabits()});
@@ -306,10 +306,12 @@ function sendLater(key,fn){if(LATER[key])clearTimeout(LATER[key].t);LATER[key]={
 function cancelLater(){for(const k in LATER){clearTimeout(LATER[k].t);delete LATER[k]}}
 // L'appli passe en arrière-plan : on envoie tout de suite ce qui attendait.
 document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const k in LATER){const {fn,t}=LATER[k];clearTimeout(t);delete LATER[k];fn()}});
-function keepPending(pend,data){
+// local : la valeur vient de la copie locale, pas du serveur ; on ne lâche alors pas le clic en attente,
+// sinon l'écho (plus vieux) d'un clic précédent peut effacer le suivant pendant une seconde.
+function keepPending(pend,data,local){
   const now=Date.now();
   for(const [k,p] of Object.entries(pend)){
-    if(now-p.t>10000||same(data[k],p.v)||(!data[k]&&!p.v)) delete pend[k]; else data[k]=p.v;
+    if(!local&&(now-p.t>10000||same(data[k],p.v)||(!data[k]&&!p.v))) delete pend[k]; else data[k]=p.v;
   }
   return data;
 }
