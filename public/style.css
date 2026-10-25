@@ -773,3 +773,7 @@ header.top h1{color:var(--hd-ink)}
   .wrap::before{content:"";position:absolute;bottom:100%;height:100vh;pointer-events:none;background:var(--hd1);
     left:calc(-1*max(16px,env(safe-area-inset-left,0px)));right:calc(-1*max(16px,env(safe-area-inset-right,0px)))}
 }
+/* iPhone : la zone révélée quand on tire l'écran prend la couleur de fond de la page (html).
+   On la met à la couleur de l'en-tête ; le corps de page garde son fond crème. */
+html{background:var(--hd1)}
+body{background:var(--bg);min-height:100vh;min-height:100dvh}
