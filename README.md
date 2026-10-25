@@ -41,4 +41,4 @@ Elle crée son compte depuis l'appli, puis vous l'ajoutez en ami avec son pseudo
 
 ## Vérifier l'appli
 
-`node test/run.js` ouvre l'appli dans un navigateur avec un faux Supabase et rejoue les gestes courants (menu, semaine, courses, hors ligne, corbeille, sauvegarde). Il faut une fois `npm i -D playwright && npx playwright install chromium`.
+`node test/run.cjs` ouvre l'appli dans un navigateur avec un faux Supabase et rejoue les gestes courants (menu, semaine, courses, hors ligne, corbeille, sauvegarde). Il faut une fois `npm i -D playwright && npx playwright install chromium`.

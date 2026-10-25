@@ -1,4 +1,4 @@
-// Lancer : node test/run.js (il faut une fois : npm i -D playwright && npx playwright install chromium)
+// Lancer : node test/run.cjs (il faut une fois : npm i -D playwright && npx playwright install chromium)
 // Vérifie les 6 fonctions de priorité 1 dans un vrai navigateur, avec un faux Supabase.
 const { chromium } = require('playwright');
 const http = require('http'); const fs = require('fs'); const path = require('path');
