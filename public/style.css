@@ -655,3 +655,115 @@ dialog.acct{border-top:5px solid var(--accent)}
 .day.today .day-h h3{color:var(--accent-text)}
 .day.today .day-h h3::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:8px;vertical-align:middle}
 @media (max-width:400px){.menu-actions .btn{font-size:13.5px;padding:0 8px}.menu-actions .btn .icon{width:16px;height:16px}}
+
+/* ===== Maquette de Fred, liste de courses (25 oct.) =====
+   En-tête clair aux feuilles, barre d'onglets flottante, boutons en pastilles, carte Panier Carrefour,
+   rayons en cartes à bandeau pâle, articles avec rond à cocher et + vert pâle. */
+:root{--hd1:#E9F0E2;--hd2:#F4F5EE;--hd-ink:#1D2A20;--leafc:#8FB37F;--ok-bg:#E6EFDC;--ok-ink:#3F6A48;--ok-dot:#4E7D52;--mute-bg:#F3F1EC;--mute-ink:#7C807A}
+:root[data-theme="dark"]{--hd1:#1E2A1E;--hd2:#181D18;--hd-ink:#ECEFEA;--leafc:#5E7F55;--ok-bg:#26331F;--ok-ink:#A9CFAF;--ok-dot:#9DC4A3;--mute-bg:#232823;--mute-ink:#A1A89F}
+body::before{background:var(--hd1)}
+header.top{background:linear-gradient(170deg,var(--hd1) 0%,var(--hd2) 100%);color:var(--hd-ink);
+  border-radius:0 0 30px 64px;box-shadow:0 8px 24px rgba(70,90,60,.08)}
+header.top::after{opacity:1;z-index:-1;inset:0;
+  background:
+   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 120'%3E%3Cpath d='M-6 58C2 30 24 18 58 20 52 52 30 66-6 58z' fill='%238FB37F' opacity='.55'/%3E%3Cpath d='M-4 110c2-26 18-40 46-42-2 28-18 42-46 42z' fill='%238FB37F' opacity='.4'/%3E%3C/svg%3E") left -26px top -10px/86px auto no-repeat,
+   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 130'%3E%3Cpath d='M150 10c-30 0-48 18-50 46 30-2 48-18 50-46z' fill='%238FB37F' opacity='.35'/%3E%3Cpath d='M58 128c-4-22 4-38 26-48 4 24-6 40-26 48z' fill='%238FB37F' opacity='.45'/%3E%3Cpath d='M60 126c6-12 12-24 22-40' stroke='%23779E68' stroke-width='1.6' fill='none' opacity='.5'/%3E%3Cpath d='M112 130c-2-20 8-34 28-40 2 22-8 36-28 40z' fill='%238FB37F' opacity='.3'/%3E%3C/svg%3E") right -4px bottom 0/150px auto no-repeat}
+:root[data-theme="dark"] header.top::after{opacity:.45}
+header.top h1{color:var(--hd-ink)}
+.leaf{color:#5E8F52}
+:root[data-theme="dark"] .leaf{color:#9DC4A3}
+.carnet-btn{color:var(--hd-ink);background:var(--surface);box-shadow:0 2px 8px rgba(60,70,50,.1);padding:4px 12px 4px 14px;font-weight:700}
+.carnet-btn:hover{color:var(--hd-ink);background:var(--surface)}
+.acct-btn{background:var(--surface);color:var(--accent-text);border:2px solid rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(60,80,50,.14)}
+:root[data-theme="dark"] .acct-btn{background:var(--soft);color:var(--accent-text);border-color:var(--line)}
+@media (min-width:721px){
+  nav.tabs{background:rgba(255,255,255,.55)}
+  :root[data-theme="dark"] nav.tabs{background:rgba(0,0,0,.2)}
+  nav.tabs button{color:var(--muted)}
+  nav.tabs button[aria-current="page"]{background:var(--surface);color:var(--accent-text)}
+  nav.tabs .badge{background:var(--accent);color:var(--accent-ink)}
+}
+@media (max-width:720px){
+  nav.tabs{left:12px;right:12px;bottom:calc(6px + env(safe-area-inset-bottom,0px));border-radius:28px;padding:8px 6px;
+    box-shadow:0 6px 24px rgba(50,60,40,.12);border:1px solid rgba(255,255,255,.7)}
+  :root[data-theme="dark"] nav.tabs{border-color:var(--line)}
+  body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
+}
+
+/* Titre et pastilles */
+.lc-head{display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 12px}
+.lc-title{font-size:30px;line-height:1.1;white-space:nowrap}
+@media (max-width:430px){.lc-title{font-size:25px}.lc-head .btn.pill{min-height:38px;padding:0 12px;font-size:13.5px;gap:6px}.lc-head .btn.pill .ring{width:16px;height:16px}}
+.btn.pill{white-space:nowrap;min-height:42px;padding:0 16px;font-size:14.5px;font-weight:700;gap:8px;background:var(--surface);border:1px solid rgba(255,255,255,.8);box-shadow:0 2px 4px rgba(60,50,30,.04),0 6px 16px rgba(60,50,30,.07);color:var(--ink)}
+.btn.pill .icon{width:19px;height:19px}
+.btn.pill .ring{width:18px;height:18px;border-radius:50%;border:2px solid #A9B3A4;flex:none}
+.lc-head .btn.pill{color:var(--muted);font-weight:600}
+.lc-acts{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.btn.pill.ok{background:var(--ok-bg);color:var(--ok-ink);border-color:var(--ok-bg)}
+.btn.pill.ok .icon{color:var(--ok-dot);width:21px;height:21px}
+.btn.pill.mute{background:var(--mute-bg);color:var(--mute-ink);border-color:var(--mute-bg);box-shadow:none;font-weight:600}
+:root[data-theme="dark"] .btn.pill{border-color:var(--line)}
+
+/* Carte Panier Carrefour */
+.cf-card{all:unset;box-sizing:border-box;cursor:pointer;position:relative;overflow:hidden;isolation:isolate;display:grid;width:100%;
+  grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ico t chev" "n n n" "r r r";align-items:center;gap:6px 14px;
+  padding:16px 18px 18px;margin-bottom:16px;border-radius:26px;border:1px solid rgba(255,255,255,.85);
+  background:linear-gradient(105deg,var(--surface) 0%,var(--surface) 48%,var(--ok-bg) 100%);box-shadow:0 2px 4px rgba(60,50,30,.04),0 12px 30px rgba(60,50,30,.09)}
+:root[data-theme="dark"] .cf-card{border-color:var(--line)}
+.cf-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cf-card:active{transform:scale(.99)}
+.cf-ico{grid-area:ico;width:46px;height:46px;border-radius:14px;background:var(--surface);display:grid;place-items:center;color:var(--accent-text);box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px rgba(60,50,30,.08)}
+.cf-ico .icon{width:24px;height:24px}
+.cf-t{grid-area:t;font-family:var(--display);font-weight:800;font-size:20px;color:var(--ink);z-index:1}
+.cf-chev{grid-area:chev;align-self:start;color:var(--muted);z-index:1}
+.cf-n{grid-area:n;font-size:15.5px;color:var(--ink);margin-top:8px;z-index:1}
+.cf-row{grid-area:r;display:flex;align-items:center;gap:14px;min-width:0;padding-right:96px;z-index:1}
+.cf-bar{display:block;flex:1;min-width:60px;max-width:240px;height:9px;border-radius:999px;background:var(--soft);overflow:hidden;z-index:1;box-shadow:0 1px 2px rgba(0,0,0,.06) inset}
+.cf-bar i{display:block;height:100%;border-radius:999px;background:var(--ok-dot);transition:width .3s}
+@media (prefers-reduced-motion:reduce){.cf-bar i{transition:none}.cf-card:active{transform:none}}
+.cf-rec{flex:none;font-size:13.5px;color:var(--muted);z-index:1;white-space:nowrap}
+.cf-art{position:absolute;right:-6px;bottom:-4px;width:132px;height:auto;z-index:0;pointer-events:none}
+.cf-blob{fill:var(--ok-bg);opacity:.9}
+.cf-leaf{fill:var(--leafc);opacity:.5}.cf-leaf.l2{opacity:.3}
+.cf-rib{fill:none;stroke:#779E68;stroke-width:1.6;opacity:.5}
+.cf-cart{fill:none;stroke:var(--leafc);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+@media (max-width:400px){.cf-art{width:112px}.cf-row{padding-right:74px}}
+
+/* Ajouter un article */
+.addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:12px}
+.addfield{display:flex;align-items:center;gap:10px;min-width:0;background:var(--surface);border-radius:999px;padding:0 6px 0 8px;box-shadow:var(--lift);cursor:text}
+.addfield:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.addplus{width:36px;height:36px;border-radius:50%;background:var(--soft);display:grid;place-items:center;color:var(--muted);flex:none}
+.addplus .icon{width:20px;height:20px}
+.addrow .addfield input{flex:1;min-width:0;min-height:50px;border:0;background:none;box-shadow:none;padding:0 8px 0 0;font-size:15.5px;outline:none}
+.addrow .addfield input::placeholder{color:#A3A8A0}
+.addrow .btn.addgo{min-height:50px;padding:0 20px;font-size:16px;background:var(--ok-bg);border-color:var(--ok-bg);color:var(--ok-ink);box-shadow:0 2px 4px rgba(60,50,30,.04),0 6px 16px rgba(60,50,30,.07)}
+.addrow .btn.addgo .icon{width:20px;height:20px}
+.addrow .sugg{grid-column:1/-1}
+.quick{margin:0 0 20px;gap:10px}
+.quick .btn.pill{white-space:nowrap;min-height:42px;padding:0 16px;font-size:14.5px}
+.quick .btn.pill .icon{color:var(--ink)}
+
+/* Rayons */
+.shop section{border-radius:24px;padding:0;box-shadow:0 2px 4px rgba(60,50,30,.04),0 12px 30px rgba(60,50,30,.08)}
+.shop h2{padding:0;background:var(--aisle,var(--accent-soft))}
+.aisle-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:14px 14px 14px 16px}
+.aisle-h:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:24px 24px 0 0}
+.shop h2 .aico{width:46px;height:46px;border-radius:14px;font-size:25px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px rgba(60,50,30,.08)}
+.aname{flex:1;min-width:0;font-size:19px;line-height:1.2;font-weight:800;color:var(--ink)}
+.shop h2 small{background:rgba(255,255,255,.7);color:var(--ink);opacity:1;font-size:13px;font-weight:700;padding:5px 11px;white-space:nowrap}
+@media (max-width:430px){.aname{font-size:17px}.aisle-h{gap:10px;padding:12px 12px 12px 14px}.shop h2 .aico{width:42px;height:42px;font-size:23px}.shop h2 small{font-size:12.5px;padding:4px 9px}.achev .icon{width:20px;height:20px}}
+.achev{color:var(--muted);display:grid;transition:transform .2s}
+.achev .icon{width:22px;height:22px}
+.shop section.fold .achev{transform:rotate(90deg)}
+@media (prefers-reduced-motion:reduce){.achev{transition:none}}
+.shop .item{margin:0 16px;padding:14px 0;grid-template-columns:30px minmax(0,1fr) auto;gap:14px}
+.shop .item .n{font-size:16.5px;font-weight:700}
+.shop .item .q,.shop .item .q.tot{color:var(--ink);font-weight:700}
+.shop .item .from{font-size:14px;color:var(--muted);margin-top:2px}
+.item input{width:30px;height:30px;border:2px solid #C5CFBE}
+.item input:checked{background:var(--ok-dot);border-color:var(--ok-dot)}
+.shop .item .xstep.solo button,.shop .item .xstep button{width:40px;height:40px;background:var(--ok-bg);color:var(--ok-ink);font-size:22px;font-weight:600}
+.shop .item .xstep{background:var(--ok-bg)}
+.shop .item .xstep.solo{background:none}
+.shop .item.done{opacity:.55}
