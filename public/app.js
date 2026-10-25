@@ -397,17 +397,33 @@ function vDetail(){
 const qin=(key,v,label)=>`<input class="qin" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" data-qin="${esc(key)}" value="${esc(v)}" aria-label="${esc(label)}" style="width:${Math.max(2,String(v).length)+1}ch">`;
 function vMenu(){
   const ids=Object.keys(S.menu).filter(id=>S.recipes[id]);
-  if(!ids.length) return `<h2 style="font-size:28px;margin-bottom:14px">Le menu</h2><div class="empty"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette pour l’ajouter. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   const row=id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow" data-key="${esc(id)}"><div class="thumb">${thumb(r)}</div>
    <button class="linkbtn" data-open="${esc(id)}"><h3>${esc(r.title)}</h3><span class="status">${esc(r.cat||'')}</span></button>
    <div class="ctl">${slotSelect(id)}<div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`};
-  const planned=ids.filter(id=>S.plan[id]), loose=ids.filter(id=>!S.plan[id]);
-  const bySlot=i=>planned.filter(id=>S.plan[id].startsWith(i+'-')).sort((a,b)=>S.plan[a].localeCompare(S.plan[b])||S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
-  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2><button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button></div>
-  ${loose.length?`<section class="week-sec" data-key="w:loose"><h3 class="wk-h">À caser<small>${planned.length?'':'Choisissez un jour pour chaque recette'}</small></h3><div class="menu-list">${loose.map(row).join('')}</div></section>`:''}
-  ${planned.length?DAYS.map((d,i)=>{const l=bySlot(i);return `<section class="week-sec${l.length?'':' free'}" data-key="w:${i}"><h3 class="wk-h">${d}<small>${l.length?l.map(id=>S.plan[id].split('-')[1]).filter((m,j,a)=>a.indexOf(m)===j).join(' et '):'Rien de prévu'}</small></h3>${l.length?`<div class="menu-list">${l.map(row).join('')}</div>`:''}</section>`}).join(''):''}`;
+  const loose=ids.filter(id=>!S.plan[id]);
+  // Une tuile par recette posée sur un repas : toucher ouvre la recette, ✕ la remet « à caser ».
+  const tile=id=>{const r=S.recipes[id];return `<div class="tile" data-key="p:${esc(id)}"><button class="tile-open" data-open="${esc(id)}"><span class="thumb">${thumb(r)}</span><span class="tile-t">${esc(r.title)}</span><span class="tile-n">${esc(servLabel(r,S.menu[id]))}</span></button><button class="tile-x" data-unslot="${esc(id)}" aria-label="Enlever ${esc(r.title)} de ce repas">✕</button></div>`};
+  const cell=(i,m)=>{const l=ids.filter(id=>S.plan[id]===i+'-'+m).sort((a,b)=>S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
+    return `<div class="cell${l.length?'':' free'}" data-key="s:${i}-${m}"><span class="cell-m" aria-hidden="true">${m==='midi'?'Midi':'Soir'}</span>${l.map(tile).join('')}<button class="cell-add" data-pick="${i}-${m}" aria-label="Ajouter une recette ${DAYS[i].toLowerCase()} ${m}">${ICON.plus}</button></div>`};
+  const grid=`<div class="week" role="table" aria-label="Menus de la semaine">${DAYS.map((d,i)=>`<section class="day" data-key="d:${i}"><h3 class="day-h">${d}</h3>${cell(i,'midi')}${cell(i,'soir')}</section>`).join('')}</div>`;
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2>${ids.length?`<button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button>`:''}</div>
+  ${grid}
+  ${loose.length?`<section class="week-sec" data-key="w:loose"><h3 class="wk-h">À caser<small>Choisissez un jour, ou touchez un + dans le tableau</small></h3><div class="menu-list">${loose.map(row).join('')}</div></section>`
+   :!ids.length?`<div class="empty" style="margin-top:18px"><h2>Rien au menu pour l’instant</h2><p>Touchez un + dans le tableau, ou le + sur une recette. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`:''}`;
 }
+/* ---------- Choisir une recette pour un repas (fenêtre) ---------- */
+function renderPick(){
+  const el=$('#pick-list'); if(!el||!S.pick) return;
+  const q=plain(($('#pick-q')&&$('#pick-q').value)||'').trim();
+  const all=Object.entries(S.recipes).filter(([,r])=>!q||plain(r.title).includes(q)).sort((a,b)=>a[1].title.localeCompare(b[1].title,'fr'));
+  const loose=all.filter(([id])=>S.menu[id]&&!S.plan[id]), rest=all.filter(([id])=>!(S.menu[id]&&!S.plan[id]));
+  const rowOf=([id,r])=>`<button type="button" class="s-row" data-pickr="${esc(id)}"><span class="thumb pick-th">${thumb(r)}</span><div class="s-txt"><b>${esc(r.title)}</b><span>${S.plan[id]?'Déjà '+esc(slotLabel(S.plan[id]).toLowerCase()):S.menu[id]?'Au menu, à caser':esc(r.cat||'')}</span></div></button>`;
+  el.innerHTML=(loose.length?`<p class="status pick-h">Au menu, à caser</p>${loose.map(rowOf).join('')}`:'')+(rest.length?`${loose.length?'<p class="status pick-h">Toutes les recettes</p>':''}${rest.map(rowOf).join('')}`:'')||'<p class="hint">Aucune recette ne correspond.</p>';
+}
+function slotLabel(s){const [d,m]=s.split('-');return DAYS[+d]+' '+m}
+function openPick(slot){S.pick=slot;$('#pick-title').textContent=slotLabel(slot);const q=$('#pick-q');if(q)q.value='';renderPick();$('#pick').showModal();setTimeout(()=>q&&q.focus(),0)}
+function setSlot(id,v){S.plan={...S.plan};if(v)S.plan[id]=v;else delete S.plan[id];render();if(db)upd('state/menu',{plan:{[id]:v||''}})}
 /* ---------- Panier Carrefour ----------
    Claude remplit le panier avec le connecteur officiel Carrefour (à ajouter une fois dans Claude) :
    l'appli ouvre Claude avec la demande toute prête, ce qui reste à acheter et l'adresse de livraison. */
@@ -633,12 +649,15 @@ function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
   const dlg=e.target.closest('dialog');
-  if(dlg&&e.target===dlg&&(dlg.id==='rayons'||dlg.id==='habituels')){dlg.close();return}
+  if(dlg&&e.target===dlg&&(dlg.id==='rayons'||dlg.id==='habituels'||dlg.id==='pick')){dlg.close();return}
   if(e.target.id==='exp-btn'){exportCarnet();return}
   const b=e.target.closest('button,[data-k]'); if(!b) return;
   if(b.dataset.always){e.preventDefault();const k=b.dataset.always,n=b.dataset.n;S.always={...S.always,[k]:{n}};render();if(db)upd('state/courses',{always:{[k]:{n}}});toast(n+' : retiré de la liste, on en a toujours');return}
   if(b.dataset.noalways){const k=b.dataset.noalways,a={...S.always};delete a[k];S.always=a;render();if(db)upd('state/courses',{always:{[k]:false}});return}
   if(b.dataset.ray){moveAisle(b.dataset.ray,+b.dataset.d);return}
+  if(b.dataset.pick){openPick(b.dataset.pick);return}
+  if(b.dataset.pickr){const id=b.dataset.pickr,slot=S.pick;$('#pick').close();if(!S.menu[id]){const r=S.recipes[id];setServ(id,(S.preview&&S.preview[id])||r.portions||1)}setSlot(id,slot);toast(S.recipes[id].title+' : '+slotLabel(slot));return}
+  if(b.dataset.unslot){setSlot(b.dataset.unslot,'');return}
   if(b.dataset.delhab){e.preventDefault();const id=b.dataset.delhab,h={...S.habits};delete h[id];S.habits=h;renderHabits();render();if(db)upd('state/habituels',{items:{[id]:false}});return}
   if(b.dataset.restore){const id=b.dataset.restore,r={...S.trash[id]};if(!r.title)return;delete r.deletedAt;delete r.deletedBy;
     try{await db.doc('recipes/'+id).set(r);await db.doc('trash/'+id).delete();toast('Recette restaurée');S.trashView=false;S.detail=id;render();scrollTo(0,0)}catch(err){toast('Restauration impossible, réessayez.')}return}
@@ -696,7 +715,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('change',e=>{
   if(e.target.id==='imp-file'){const f=e.target.files[0];e.target.value='';if(f)importCarnet(f);return}
   if(e.target.dataset&&e.target.dataset.hab){habCount();return}
-  if(e.target.dataset&&e.target.dataset.slot){const id=e.target.dataset.slot,v=e.target.value;S.plan={...S.plan};if(v)S.plan[id]=v;else delete S.plan[id];render();if(db)upd('state/menu',{plan:{[id]:v}});return}
+  if(e.target.dataset&&e.target.dataset.slot){setSlot(e.target.dataset.slot,e.target.value);return}
   const qk=e.target.dataset&&e.target.dataset.qin;
   if(qk){const v=Math.round(parseFloat(String(e.target.value).replace(',','.')));const kind=qk[0],id=qk.slice(2);
     const undo=()=>{e.target.value=e.target.getAttribute('value')};
@@ -713,7 +732,7 @@ document.addEventListener('change',e=>{
 document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.qin)setTimeout(()=>e.target.select(),0)});
 document.addEventListener('pointerup',e=>{if(e.target.dataset&&e.target.dataset.qin){e.preventDefault();e.target.select()}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.qin){e.preventDefault();e.target.blur()}});
-document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
+document.addEventListener('input',e=>{if(e.target.id==='pick-q'){renderPick();return}if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
 document.addEventListener('submit',async e=>{
   e.preventDefault();
   if(e.target.id==='cfaddr'){const v=$('#cfa').value.trim();if(!v){toast('Indiquez l’adresse de livraison.');return}S.cfAddr=v;if(db)upd('state/carrefour',{address:v});S.cf={step:'ready'};render();return}
