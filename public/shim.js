@@ -1,5 +1,7 @@
 /* Couche de données : reproduit l'interface claude.use('db') / claude.use('assets')
-   utilisée par app.js, au-dessus de Supabase (table public.docs + stockage "photos"). */
+   utilisée par app.js, au-dessus de Supabase (table public.docs + stockage "photos").
+   Sans réseau : la dernière copie des données reste sur le téléphone, les modifications
+   attendent dans une file et partent au retour du réseau. */
 (function () {
   const cfg = window.CONFIG || {};
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
@@ -11,6 +13,63 @@
   // Chaque groupe a son carnet : tous les chemins sont rangés sous g/<groupe>/.
   let prefix = '';
   window.setCarnet = id => { prefix = 'g/' + id + '/'; };
+
+  const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  /* ---------- Copie locale ---------- */
+  // Tout le cache est gardé sur l'appareil : l'appli s'ouvre avec les dernières données, même sans réseau.
+  try { for (const [p, d] of Object.entries(JSON.parse(store.get('docs') || '{}'))) cache.set(p, d); } catch (e) {}
+  let saveT = null;
+  function persist() {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => { const o = {}; for (const [p, d] of cache) o[p] = d; store.set('docs', JSON.stringify(o)); }, 300);
+  }
+
+  /* ---------- File d'attente hors ligne ---------- */
+  let queue = [];
+  try { queue = JSON.parse(store.get('pending') || '[]'); } catch (e) { queue = []; }
+  const saveQueue = () => store.set('pending', JSON.stringify(queue));
+  const netError = e => !navigator.onLine || /fetch|network|load failed|NetworkError/i.test((e && e.message) || '');
+  let flushing = false;
+  async function flush() {
+    if (flushing || !queue.length || !navigator.onLine) return;
+    flushing = true;
+    try {
+      while (queue.length) {
+        const op = queue[0];
+        const { error } = await send(op);
+        if (error) { if (netError(error)) break; }  // toujours hors ligne : on réessaiera
+        queue.shift(); saveQueue();                 // envoyé, ou refusé pour de bon : on passe
+      }
+    } finally { flushing = false; }
+    if (!queue.length) reloadAll();
+    window.dispatchEvent(new CustomEvent('pendingchange', { detail: queue.length }));
+  }
+  function send(op) {
+    if (op.t === 'set') return sb.from('docs').upsert({ path: op.path, data: op.body, updated_at: new Date().toISOString() });
+    if (op.t === 'update') return sb.rpc('doc_merge', { p_path: op.path, p_patch: op.body });
+    return sb.from('docs').delete().eq('path', op.path);
+  }
+  // Une écriture qui échoue faute de réseau est gardée pour plus tard ; l'appli continue comme si elle avait réussi.
+  async function write(op) {
+    if (queue.length) { queue.push(op); saveQueue(); flush(); return; }
+    const { error } = await send(op);
+    if (!error) return;
+    if (!netError(error)) throw fail(error);
+    queue.push(op); saveQueue();
+    window.dispatchEvent(new CustomEvent('pendingchange', { detail: queue.length }));
+  }
+  window.pendingWrites = () => queue.length;
+  window.addEventListener('online', flush);
+
+  // Même fusion que doc_merge côté serveur, pour voir tout de suite ce qu'on vient de changer.
+  function deepMerge(a, b) {
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) || Array.isArray(b)) return b;
+    const r = { ...a };
+    for (const [k, v] of Object.entries(b)) r[k] = deepMerge(r[k], v);
+    return r;
+  }
 
   const depth = p => p.split('/').length;
   const snap = path => {
@@ -24,14 +83,14 @@
     if (channel) return;
     channel = sb.channel('docs')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, p => {
-        if (p.eventType === 'DELETE') { const path = p.old && p.old.path; if (path) { cache.delete(path); notify(path); } }
-        else { cache.set(p.new.path, p.new.data); notify(p.new.path); }
+        if (p.eventType === 'DELETE') { const path = p.old && p.old.path; if (path) { cache.delete(path); persist(); notify(path); } }
+        else { cache.set(p.new.path, p.new.data); persist(); notify(p.new.path); }
       })
       .subscribe(status => { if (status === 'SUBSCRIBED') reloadAll(); });
   }
   function reloadAll() { for (const l of listeners) l.load(); }
   // Un téléphone en veille perd la connexion temps réel : on recharge au retour.
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reloadAll(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { flush(); reloadAll(); } });
   window.addEventListener('online', reloadAll);
 
   function docRef(path) {
@@ -41,30 +100,31 @@
         const { data, error } = await sb.from('docs').select('data').eq('path', path).maybeSingle();
         if (error) throw fail(error);
         if (data) cache.set(path, data.data); else cache.delete(path);
+        persist();
         return snap(path);
       },
       async set(body) {
-        cache.set(path, body); notify(path);
-        const { error } = await sb.from('docs').upsert({ path, data: body, updated_at: new Date().toISOString() });
-        if (error) throw fail(error);
+        cache.set(path, body); persist(); notify(path);
+        await write({ t: 'set', path, body });
       },
       async update(patch) {
-        const { error } = await sb.rpc('doc_merge', { p_path: path, p_patch: patch });
-        if (error) throw fail(error);
+        cache.set(path, deepMerge(cache.get(path) || {}, patch)); persist(); notify(path);
+        await write({ t: 'update', path, body: patch });
       },
       async delete() {
-        cache.delete(path); notify(path);
-        const { error } = await sb.from('docs').delete().eq('path', path);
-        if (error) throw fail(error);
+        cache.delete(path); persist(); notify(path);
+        await write({ t: 'delete', path });
       },
       onSnapshot(next, onErr) {
         ensureChannel();
         const l = {
           match: p => p === path,
           fire: () => next(snap(path)),
-          load: async () => { try { await docRef(path).get(); l.fire(); } catch (e) { onErr && onErr(e); } },
+          load: async () => { if (queue.length) return; try { await docRef(path).get(); l.fire(); } catch (e) { onErr && onErr(e); } },
         };
-        listeners.add(l); l.load();
+        listeners.add(l);
+        if (cache.has(path)) l.fire(); // copie locale d'abord
+        l.load();
         return () => listeners.delete(l);
       },
     };
@@ -73,6 +133,8 @@
   function collectionRef(name) {
     name = prefix + name;
     const inCol = p => p.startsWith(name + '/') && depth(p) === depth(name) + 1;
+    const docsNow = () => [...cache.keys()].filter(inCol).sort().map(snap);
+    const result = docs => ({ docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } });
     return {
       path: name.slice(prefix.length),
       doc: id => docRef(name + '/' + (id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8))),
@@ -81,15 +143,18 @@
         if (error) throw fail(error);
         for (const p of [...cache.keys()]) if (inCol(p)) cache.delete(p);
         for (const r of data) if (inCol(r.path)) cache.set(r.path, r.data);
-        const docs = [...cache.keys()].filter(inCol).sort().map(snap);
-        return { docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } };
+        persist();
+        return result(docsNow());
       },
       onSnapshot(next, onErr) {
         ensureChannel();
         const self = this;
-        const emit = () => { const docs = [...cache.keys()].filter(inCol).sort().map(snap); next({ docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } }); };
-        const l = { match: inCol, fire: emit, load: async () => { try { await self.get(); emit(); } catch (e) { onErr && onErr(e); } } };
-        listeners.add(l); l.load();
+        const emit = () => next(result(docsNow()));
+        // Tant que des modifications attendent le réseau, on ne recharge pas : elles seraient écrasées.
+        const l = { match: inCol, fire: emit, load: async () => { if (queue.length) return; try { await self.get(); emit(); } catch (e) { onErr && onErr(e); } } };
+        listeners.add(l);
+        if (docsNow().length) emit();
+        l.load();
         return () => listeners.delete(l);
       },
     };
@@ -119,4 +184,5 @@
 
   const db = { doc: p => docRef(prefix + p), collection: collectionRef };
   window.claude = { use: async name => name === 'db' ? db : name === 'assets' ? assets : null };
+  flush();
 })();

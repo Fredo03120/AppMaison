@@ -66,6 +66,19 @@
     <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="pick" id="copyto-list"></div>
 </dialog>
+<dialog class="acct" id="rayons">
+  <div class="acct-head"><div><h2>Ordre des rayons</h2><p>Dans l'ordre de votre parcours en magasin. Valable pour tout le groupe.</p></div>
+    <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="pick rays" id="rayons-list"></div>
+  <button class="btn ghost" data-act="rayreset">Remettre l'ordre d'origine</button>
+</dialog>
+<dialog class="acct" id="habituels">
+  <div class="acct-head"><div><h2>Articles habituels</h2><p>Ce que vous rachetez souvent. Cochez ce qu'il faut, tout part dans la liste d'un coup.</p></div>
+    <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <form id="hab-add" class="acct-row"><input id="hab-in" autocomplete="off" placeholder="Nouvel habituel (ex. lait, 6 yaourts)" aria-label="Nouvel article habituel" required><button class="btn">Garder</button></form>
+  <div class="hab-list" id="hab-list"></div>
+  <button class="btn primary" id="hab-go" data-act="habgo" disabled>Cochez ce qu'il faut racheter</button>
+</dialog>
 <dialog class="acct" id="import">
   <div class="acct-head"><div><h2>Importer une recette</h2><p>Collez le lien d'une recette, ou prenez en photo une page de livre ou une fiche.</p></div>
     <button class="acct-x" data-close aria-label="Fermer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -94,6 +107,9 @@
   </form>
   <div class="theme-pick"><span class="status">Apparence</span>
     <div class="seg" role="group" aria-label="Apparence"><button type="button" data-theme-set="light">Clair</button><button type="button" data-theme-set="dark">Sombre</button><button type="button" data-theme-set="auto">Auto</button></div></div>
+  <div class="theme-pick"><span class="status">Sauvegarde du carnet</span>
+    <div class="acct-row wrapable"><button type="button" class="btn" id="exp-btn">Télécharger le carnet</button><label class="btn imp-file">Importer un fichier<input id="imp-file" type="file" accept=".json,application/json" hidden></label></div>
+    <p class="acct-since" id="exp-last"></p></div>
   <p class="acct-since" id="acct-since"></p>
   <button class="btn acct-out" id="signout">Se déconnecter</button>
 </dialog>
