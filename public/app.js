@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={adj:{},recipes:{},menu:{},plan:{},checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0};
+const S={adj:{},recipes:{},menu:{},plan:{},checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0,menuTab:(()=>{try{return localStorage.getItem('menuTab')||'liste'}catch(e){return 'liste'}})()};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -401,16 +401,20 @@ function vMenu(){
    <button class="linkbtn" data-open="${esc(id)}"><h3>${esc(r.title)}</h3><span class="status">${esc(r.cat||'')}</span></button>
    <div class="ctl">${slotSelect(id)}<div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`};
-  const loose=ids.filter(id=>!S.plan[id]);
   // Une tuile par recette posée sur un repas : toucher ouvre la recette, ✕ la remet « à caser ».
   const tile=id=>{const r=S.recipes[id];return `<div class="tile" data-key="p:${esc(id)}"><button class="tile-open" data-open="${esc(id)}"><span class="thumb">${thumb(r)}</span><span class="tile-t">${esc(r.title)}</span><span class="tile-n">${esc(servLabel(r,S.menu[id]))}</span></button><button class="tile-x" data-unslot="${esc(id)}" aria-label="Enlever ${esc(r.title)} de ce repas">✕</button></div>`};
   const cell=(i,m)=>{const l=ids.filter(id=>S.plan[id]===i+'-'+m).sort((a,b)=>S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
     return `<div class="cell${l.length?'':' free'}" data-key="s:${i}-${m}"><span class="cell-m" aria-hidden="true">${m==='midi'?'Midi':'Soir'}</span>${l.map(tile).join('')}<button class="cell-add" data-pick="${i}-${m}" aria-label="Ajouter une recette ${DAYS[i].toLowerCase()} ${m}">${ICON.plus}</button></div>`};
   const grid=`<div class="week" role="table" aria-label="Menus de la semaine">${DAYS.map((d,i)=>`<section class="day" data-key="d:${i}"><h3 class="day-h">${d}</h3>${cell(i,'midi')}${cell(i,'soir')}</section>`).join('')}</div>`;
+  // Deux onglets : la liste des recettes choisies, et le tableau de la semaine.
+  const tab=S.menuTab||'liste', loose=ids.filter(id=>!S.plan[id]);
+  const tabs=`<div class="seg mtabs" role="tablist" aria-label="Affichage du menu"><button type="button" role="tab" data-mtab="liste" aria-pressed="${tab==='liste'}">Recettes choisies${ids.length?` <span class="cnt">${ids.length}</span>`:''}</button><button type="button" role="tab" data-mtab="semaine" aria-pressed="${tab==='semaine'}">Semaine</button></div>`;
+  const sorted=ids.slice().sort((a,b)=>((S.plan[a]||'~')).localeCompare(S.plan[b]||'~')||S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
+  const empty=`<div class="empty" style="margin-top:18px"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette, ou un + dans le tableau de la semaine. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2>${ids.length?`<button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button>`:''}</div>
-  ${grid}
-  ${loose.length?`<section class="week-sec" data-key="w:loose"><h3 class="wk-h">À caser<small>Choisissez un jour, ou touchez un + dans le tableau</small></h3><div class="menu-list">${loose.map(row).join('')}</div></section>`
-   :!ids.length?`<div class="empty" style="margin-top:18px"><h2>Rien au menu pour l’instant</h2><p>Touchez un + dans le tableau, ou le + sur une recette. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`:''}`;
+  ${tabs}
+  ${tab==='semaine'?`${grid}${loose.length?`<p class="hint" style="margin:-8px 0 0">${loose.length} recette${loose.length>1?'s':''} encore à caser : le + d’une case les propose en premier.</p>`:!ids.length?empty:''}`
+   :ids.length?`<div class="menu-list" data-key="mlist">${sorted.map(row).join('')}</div>`:empty}`;
 }
 /* ---------- Choisir une recette pour un repas (fenêtre) ---------- */
 function renderPick(){
@@ -655,6 +659,7 @@ document.addEventListener('click',async e=>{
   if(b.dataset.always){e.preventDefault();const k=b.dataset.always,n=b.dataset.n;S.always={...S.always,[k]:{n}};render();if(db)upd('state/courses',{always:{[k]:{n}}});toast(n+' : retiré de la liste, on en a toujours');return}
   if(b.dataset.noalways){const k=b.dataset.noalways,a={...S.always};delete a[k];S.always=a;render();if(db)upd('state/courses',{always:{[k]:false}});return}
   if(b.dataset.ray){moveAisle(b.dataset.ray,+b.dataset.d);return}
+  if(b.dataset.mtab){S.menuTab=b.dataset.mtab;try{localStorage.setItem('menuTab',S.menuTab)}catch(err){}render();return}
   if(b.dataset.pick){openPick(b.dataset.pick);return}
   if(b.dataset.pickr){const id=b.dataset.pickr,slot=S.pick;$('#pick').close();if(!S.menu[id]){const r=S.recipes[id];setServ(id,(S.preview&&S.preview[id])||r.portions||1)}setSlot(id,slot);toast(S.recipes[id].title+' : '+slotLabel(slot));return}
   if(b.dataset.unslot){setSlot(b.dataset.unslot,'');return}
