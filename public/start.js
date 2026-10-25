@@ -21,12 +21,17 @@
       prof = data; if (!prof) await new Promise(r => setTimeout(r, 600));
     }
     const { data: rows, error } = await sb.from('group_members').select('group_id, joined_at, groups(id, name)').eq('user_id', uid).order('joined_at');
+    let carnets = (rows || []).map(r => r.groups).filter(Boolean); // le plus ancien d'abord : c'est le carnet par défaut
     if (error || !prof) {
-      showLogin();
-      say("Impossible d'ouvrir votre compte pour le moment. Vérifiez la connexion, puis rouvrez l'appli.");
-      return;
-    }
-    const carnets = (rows || []).map(r => r.groups).filter(Boolean); // le plus ancien d'abord : c'est le carnet par défaut
+      // Sans réseau : on rouvre le compte tel qu'il était la dernière fois.
+      let saved = null; try { saved = JSON.parse(store.get('me:' + uid) || 'null'); } catch (e) {}
+      if (!saved) {
+        showLogin();
+        say("Impossible d'ouvrir votre compte pour le moment. Vérifiez la connexion, puis rouvrez l'appli.");
+        return;
+      }
+      prof = saved.profile; carnets = saved.carnets;
+    } else store.set('me:' + uid, JSON.stringify({ profile: prof, carnets }));
     const saved = store.get('carnet');
     const cur = carnets.find(c => c.id === saved) || carnets[0] || null;
     carnets.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
@@ -94,7 +99,7 @@
     window.Social && window.Social.refreshHeader();
   }
   function note(t) { const m = $('acct-msg'); m.textContent = t; m.hidden = !t; }
-  function openAccount(t) { note(t || ''); dlg.showModal(); }
+  function openAccount(t) { note(t || ''); if (typeof showLastExport === 'function') showLastExport(); dlg.showModal(); }
   window.openAccount = openAccount;
   $('acct-btn').addEventListener('click', () => openAccount());
   $('acct-close').addEventListener('click', () => dlg.close());

@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={adj:{},recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:''};
+const S={adj:{},recipes:{},menu:{},plan:{},checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -219,8 +219,16 @@ function shoppingList(){
     if(e&&!e.extra){(e.hand=e.hand||[]).push({id,q:(it.q??1)*(x.q||1),u:it.u||''});continue}
     map.set('x:'+id,{k:'x:'+id,n:x.t,c:extraCat(x.t),qs:{},bare:true,from:new Set(['Ajouté à la main']),extra:id,xq:x.q||1})}
   // Un article retiré revient seulement si sa quantité change (nouvelle recette au menu).
-  return [...map.values()].map(e=>({...e,qty:qtyText(e),from:[...e.from].join(', ')})).filter(e=>e.extra||e.hand||S.hidden[e.k]!==e.qty);
+  // Ce qu'on a toujours (sel, huile…) reste caché, sauf si on l'a ajouté à la main exprès.
+  return [...map.values()].map(e=>({...e,qty:qtyText(e),from:[...e.from].join(', ')})).filter(e=>e.extra||e.hand||(S.hidden[e.k]!==e.qty&&!S.always[e.k]));
 }
+// Rayons dans l'ordre du parcours en magasin, choisi par le groupe ; les rayons nouveaux vont à la fin.
+function aisleOrder(){const o=((S.rayons&&S.rayons.order)||[]).filter(c=>SHOP_ORDER.includes(c));return o.concat(SHOP_ORDER.filter(c=>!o.includes(c)))}
+const nameKey=t=>keyOf(parseLine(t).items[0].n);
+// Un article habituel est-il déjà dans la liste (pas encore coché) ?
+function onList(t){const k=nameKey(t);return shoppingList().some(i=>!S.checked[i.k]&&(i.extra?nameKey(i.n):i.k)===k)}
+function habitsList(){return Object.entries(S.habits).filter(([,h])=>h&&h.t).sort((a,b)=>a[1].t.localeCompare(b[1].t,'fr'))}
+function alwaysList(){return Object.entries(S.always).filter(([,v])=>v&&v.n).sort((a,b)=>a[1].n.localeCompare(b[1].n,'fr'))}
 
 /* ---------- Suggestions à la saisie d'un article ---------- */
 const COMMON=('Pain,Pain de mie,Pain complet,Baguette,Brioche,Biscottes,Croissants,Lait,Lait demi-écrémé,Beurre,Œufs,Crème fraîche,Yaourts,Yaourts nature,Fromage râpé,Emmental,Comté,Mozzarella,Parmesan,Jambon,Jambon blanc,Lardons,Poulet,Steak haché,Saumon,Thon en boîte,Pâtes,Spaghetti,Riz,Semoule,Lentilles,Farine,Sucre,Sel,Poivre,Huile d\'olive,Huile de tournesol,Vinaigre,Moutarde,Mayonnaise,Ketchup,Sauce tomate,Tomates concassées,Bouillon cube,Café,Thé,Chocolat,Chocolat noir,Céréales,Confiture,Miel,Pâte à tartiner,Biscuits,Compote,Jus d\'orange,Eau,Eau gazeuse,Bière,Vin rouge,Vin blanc,Pommes,Bananes,Oranges,Citrons,Clémentines,Poires,Fraises,Raisin,Tomates,Salade,Concombre,Carottes,Pommes de terre,Oignons,Échalotes,Ail,Courgettes,Poivrons,Champignons,Avocats,Brocoli,Haricots verts,Persil,Basilic,Surgelés,Glace,Frites surgelées,Petits pois,Maïs,Papier toilette,Essuie-tout,Mouchoirs,Liquide vaisselle,Pastilles lave-vaisselle,Lessive,Adoucissant,Éponges,Sacs poubelle,Papier aluminium,Film étirable,Gel douche,Shampoing,Dentifrice,Brosses à dents,Déodorant,Coton,Couches,Lingettes,Croquettes,Litière,Piles,Ampoules').split(',');
@@ -235,7 +243,8 @@ function suggestions(q){
   COMMON.forEach(add);
   return out.sort((a,b)=>a[0]-b[0]||a[1]-b[1]).slice(0,6).map(x=>x[2]);
 }
-function addExtra(t){const id='x'+Date.now().toString(36);S.extras={...S.extras,[id]:{t}};S.xq='';render();if(db)upd('state/courses',{extras:{[id]:{t}}})}
+function addExtra(t){addExtras([t])}
+function addExtras(ts){const patch={};ts.forEach((t,i)=>{patch['x'+(Date.now()+i).toString(36)]={t}});S.extras={...S.extras,...patch};S.xq='';render();if(db)upd('state/courses',{extras:patch})}
 
 /* ---------- Données partagées ---------- */
 async function boot(){
@@ -243,11 +252,36 @@ async function boot(){
   db=await claude.use('db').catch(()=>null);
   if(!db){S.offline=true;render();return}
   assets=await claude.use('assets').catch(()=>null);
-  db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
-  db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});render()});
+  // Sans réseau, la copie gardée sur le téléphone s'affiche ; « hors ligne » seulement s'il n'y a rien du tout.
+  db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;S.offline=false;render();remindBackup()},()=>{if(!S.ready){S.offline=true;render()}});
+  db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{};const it=keepPending(PEND.menu,{...(x.items||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));S.plan=Object.fromEntries(Object.entries(x.plan||{}).filter(([,v])=>v));render()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});S.always=x.always||{};render()});
   db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';render()});
+  db.doc('state/rayons').onSnapshot(d=>{S.rayons=d.exists?d.data():null;render();renderRayons()});
+  db.doc('state/habituels').onSnapshot(d=>{S.habits=(d.exists&&d.data().items)||{};renderHabits()});
+  db.collection('trash').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.trash=o;render();purgeTrash()});
 }
+// La corbeille se vide toute seule au bout de 30 jours.
+let purged=false;
+function purgeTrash(){if(purged||!navigator.onLine)return;purged=true;const lim=Date.now()-30*864e5;
+  for(const [id,r] of Object.entries(S.trash)) if(r.deletedAt&&Date.parse(r.deletedAt)<lim) db.doc('trash/'+id).delete().catch(()=>{})}
+/* ---------- Hors ligne ---------- */
+function netBanner(){
+  if(S.net&&!S.pend) return '';
+  return `<div class="offline" role="status">${S.net?'Réseau revenu : envoi en cours…':'Hors ligne : la liste reste utilisable.'}${S.pend?` ${S.pend} modification${S.pend>1?'s':''} en attente d’être envoyée${S.pend>1?'s':''}.`:' Vos modifications partiront au retour du réseau.'}</div>`;
+}
+window.addEventListener('online',()=>{S.net=true;render()});
+window.addEventListener('offline',()=>{S.net=false;render()});
+window.addEventListener('pendingchange',e=>{S.pend=e.detail;render()});
+// En courses, l'écran reste allumé.
+let lock=null;
+async function wakeLock(on){
+  try{
+    if(on&&!lock&&navigator.wakeLock&&document.visibilityState==='visible'){lock=await navigator.wakeLock.request('screen');lock.addEventListener('release',()=>{lock=null})}
+    else if(!on&&lock){const l=lock;lock=null;await l.release()}
+  }catch(e){lock=null}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.view==='courses'&&!S.detail&&!S.edit)wakeLock(true)});
 async function upd(path,patch){
   try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
   catch(e){toast(e&&e.code==='quota_exceeded'?'Le carnet est plein, supprimez quelques recettes.':'Enregistrement impossible, réessayez.')}
@@ -269,7 +303,7 @@ function keepPending(pend,data){
   }
   return data;
 }
-function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',{items:{[id]:n}})})}
+function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else{delete S.menu[id];if(S.plan[id]){S.plan={...S.plan};delete S.plan[id]}}render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',n>0?{items:{[id]:n}}:{items:{[id]:0},plan:{[id]:''}})})}
 function toggleCheck(k,v){PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
 
 /* ---------- Rendu ---------- */
@@ -282,6 +316,10 @@ const ICON={
  clock:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></svg>',
  chev:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
  search:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+ star:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z"/></svg>',
+ sort:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/><path d="M18 11v8m0 0l-3-3m3 3l3-3"/></svg>',
+ up:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
+ down:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
 };
 const CAT_ICON={
  '':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>',
@@ -297,6 +335,12 @@ function thumb(r){return r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`
 function metaLine(r){const m=(r.meta||[]).filter(x=>!/^Portion/.test(x[0])).map(x=>x[1]);
   return (r.ptxt?`<span>${ICON.user}${esc(r.ptxt)}</span>`:'')+(m[0]?`<span>${ICON.clock}${esc(m[0])}</span>`:'')}
 function servLabel(r,n){if(!r.portions) return n===1?'1 fournée':n+' fournées';return (r.ptxt||'').match(/\d/)?r.ptxt.replace(/\d+(\s*à\s*\d+)?/,n):n+' personnes'}
+/* ---------- Planning de la semaine ----------
+   Chaque recette du menu peut être posée sur un jour et un repas (« 2-soir » = mercredi soir) ; sinon elle est « à caser ». */
+const DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'], MEALS=[['midi','midi'],['soir','soir']];
+function slotSelect(id){const cur=S.plan[id]||'';
+  return `<select class="slot" data-slot="${esc(id)}" aria-label="Jour et repas"><option value=""${cur?'':' selected'}>À caser</option>${DAYS.map((d,i)=>MEALS.map(([m,ml])=>`<option value="${i}-${m}"${cur===i+'-'+m?' selected':''}>${d} ${ml}</option>`).join('')).join('')}</select>`}
+function dateLabel(iso){return new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}
 
 function vRecettes(){
   if(S.offline) return `<div class="empty"><h2>Carnet hors ligne</h2><p>Connexion au carnet impossible. Vérifiez le réseau, puis rouvrez l'appli.</p></div>`;
@@ -312,7 +356,16 @@ function vRecettes(){
    ${S.cat?`<div class="sect-h"><h2>${esc(S.cat)}<small>${list.length} recette${list.length>1?'s':''}</small></h2><button class="more" data-cat="">Toutes les recettes</button></div>`:''}
    ${list.length?(!S.cat&&!q?CATS.concat(['Autres']).map(c=>{const l=list.filter(([,r])=>(CATS.includes(r.cat)?r.cat:'Autres')===c);if(!l.length)return '';const cut=c!=='Autres'&&l.length>HOME_MAX;
      return `<section class="sect"><div class="sect-h"><h2>${esc(c)}<small>${l.length} recette${l.length>1?'s':''}</small></h2>${cut?`<button class="more" data-cat="${esc(c)}">Voir tout${ICON.chev}</button>`:''}</div><div class="grid">${(cut?l.slice(0,HOME_MAX):l).map(card).join('')}</div></section>`}).join(''):`<div class="grid">${list.map(card).join('')}</div>`)
-     :`<div class="empty"><h2>Aucune recette trouvée</h2><p>Essayez un autre mot, ou ajoutez-la avec « Nouvelle recette ».</p></div>`}`;
+     :`<div class="empty"><h2>Aucune recette trouvée</h2><p>Essayez un autre mot, ou ajoutez-la avec « Nouvelle recette ».</p></div>`}
+   ${!q&&!S.cat&&Object.keys(S.trash).length?`<p class="status trash-link"><button class="linkbtn s-inline" data-act="trash">Corbeille · ${Object.keys(S.trash).length} recette${Object.keys(S.trash).length>1?'s':''}</button></p>`:''}`;
+}
+function vTrash(){
+  const l=Object.entries(S.trash).sort((a,b)=>(b[1].deletedAt||'').localeCompare(a[1].deletedAt||''));
+  return `<button class="btn ghost back" data-act="home">${ICON.back}Recettes</button>
+  <h2 style="font-size:28px;margin-bottom:6px">Corbeille</h2><p class="hint" style="margin:0 0 16px">Une recette supprimée reste ici 30 jours, puis disparaît pour de bon.</p>
+  ${l.length?`<div class="menu-list">${l.map(([id,r])=>`<div class="mrow" data-key="t:${esc(id)}"><div class="thumb">${thumb(r)}</div>
+   <div style="min-width:0"><h3>${esc(r.title)}</h3><span class="status">Supprimée le ${r.deletedAt?esc(dateLabel(r.deletedAt)):'?'}${r.deletedBy?' par '+esc(r.deletedBy):''}</span></div>
+   <div class="ctl"><button class="btn" data-restore="${esc(id)}">Restaurer</button></div></div>`).join('')}</div>`:'<div class="empty"><h2>La corbeille est vide</h2></div>'}`;
 }
 function card([id,r]){return `<article class="card" data-key="${esc(id)}"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${metaLine(r)}</span></div></button>
      <button class="add" data-toggle="${esc(id)}" aria-pressed="${!!S.menu[id]}" aria-label="${S.menu[id]?'Retirer du menu':'Ajouter au menu'} : ${esc(r.title)}">${S.menu[id]?ICON.check:ICON.plus}</button></article>`;
@@ -345,11 +398,15 @@ const qin=(key,v,label)=>`<input class="qin" type="text" inputmode="numeric" pat
 function vMenu(){
   const ids=Object.keys(S.menu).filter(id=>S.recipes[id]);
   if(!ids.length) return `<h2 style="font-size:28px;margin-bottom:14px">Le menu</h2><div class="empty"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette pour l’ajouter. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
-  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2><button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button></div>
-  <div class="menu-list">${ids.map(id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow" data-key="${esc(id)}"><div class="thumb">${thumb(r)}</div>
+  const row=id=>{const r=S.recipes[id],n=S.menu[id];return `<div class="mrow" data-key="${esc(id)}"><div class="thumb">${thumb(r)}</div>
    <button class="linkbtn" data-open="${esc(id)}"><h3>${esc(r.title)}</h3><span class="status">${esc(r.cat||'')}</span></button>
-   <div class="ctl"><div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
-   <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`}).join('')}</div>`;
+   <div class="ctl">${slotSelect(id)}<div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
+   <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`};
+  const planned=ids.filter(id=>S.plan[id]), loose=ids.filter(id=>!S.plan[id]);
+  const bySlot=i=>planned.filter(id=>S.plan[id].startsWith(i+'-')).sort((a,b)=>S.plan[a].localeCompare(S.plan[b])||S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2><button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button></div>
+  ${loose.length?`<section class="week-sec" data-key="w:loose"><h3 class="wk-h">À caser<small>${planned.length?'':'Choisissez un jour pour chaque recette'}</small></h3><div class="menu-list">${loose.map(row).join('')}</div></section>`:''}
+  ${planned.length?DAYS.map((d,i)=>{const l=bySlot(i);return `<section class="week-sec${l.length?'':' free'}" data-key="w:${i}"><h3 class="wk-h">${d}<small>${l.length?l.map(id=>S.plan[id].split('-')[1]).filter((m,j,a)=>a.indexOf(m)===j).join(' et '):'Rien de prévu'}</small></h3>${l.length?`<div class="menu-list">${l.map(row).join('')}</div>`:''}</section>`}).join(''):''}`;
 }
 /* ---------- Panier Carrefour ----------
    Claude remplit le panier avec le connecteur officiel Carrefour (à ajouter une fois dans Claude) :
@@ -381,22 +438,98 @@ function vCarrefour(){
   const n=cfItems().length;
   return `<div class="confirm cf" style="margin-bottom:14px"><span style="flex-basis:100%">Claude va remplir le panier Carrefour avec ${n} article(s), livré au ${esc(S.cfAddr)}. Le placard (sel, huile, farine…) n’est pas envoyé.</span><button class="btn primary" data-act="cfgo">Ouvrir Claude</button><button class="btn ghost" data-act="cfaddr">Changer d’adresse</button>${close}</div>`;
 }
+// Articles qu'on a toujours à la maison, retirés de la liste : un toucher les remet quand il n'y en a plus.
+function vAlways(){
+  const al=alwaysList(); if(!al.length) return '';
+  return `<section class="always" data-key="always"><h3>On en a toujours</h3><p class="hint">Ces articles ne sont plus dans la liste. Touchez-en un quand il n’y en a plus.</p>
+  <div class="sugg">${al.map(([k,v])=>`<button type="button" class="chip" data-noalways="${esc(k)}">${esc(v.n)}<small>· il n’y en a plus</small></button>`).join('')}</div></section>`;
+}
 function vCourses(){
   const items=shoppingList();
   const sug=suggestions(S.xq||'');
   const add=`<form class="addrow" id="addx"><input id="xt" autocomplete="off" placeholder="Ajouter un article (ex. papier toilette, 6 yaourts)" aria-label="Article à ajouter"><button class="btn">${ICON.plus}Ajouter</button>
-    ${sug.length?`<div class="sugg" role="group" aria-label="Suggestions">${sug.map(n=>`<button type="button" class="chip" data-sugg="${esc(n)}">${ICON.plus}${esc(n)}</button>`).join('')}</div>`:''}</form>`;
-  if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
+    ${sug.length?`<div class="sugg" role="group" aria-label="Suggestions">${sug.map(n=>`<button type="button" class="chip" data-sugg="${esc(n)}">${ICON.plus}${esc(n)}</button>`).join('')}</div>`:''}</form>
+    <div class="quick"><button type="button" class="btn soft" data-act="habits">${ICON.star}Habituels${habitsList().length?` <span class="cnt">${habitsList().length}</span>`:''}</button><button type="button" class="btn ghost" data-act="rayons">${ICON.sort}Ordre des rayons</button></div>`;
+  if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>${vAlways()}`;
   const done=items.filter(i=>S.checked[i.k]).length;
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
   return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button>${items.some(i=>!S.checked[i.k])?'<button class="btn primary" data-act="carrefour">🛒 Panier Carrefour</button>':''}</div>
   ${vCarrefour()}
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le menu sera vidé aussi, pour tout le groupe.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
-  <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
-   return `<section><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
+  <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
+   return `<section data-key="c:${esc(c)}"><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
    ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
-     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>`;
+     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}${!i.extra&&!i.hand&&(c==='Placard'||c==='Épicerie')?`<button type="button" class="linkbtn always-btn" data-always="${esc(i.k)}" data-n="${esc(i.n)}">On en a toujours</button>`:''}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>${vAlways()}`;
+}
+/* ---------- Ordre des rayons (fenêtre) ---------- */
+function renderRayons(){
+  const el=$('#rayons-list'); if(!el) return;
+  const o=aisleOrder();
+  el.innerHTML=o.map((c,i)=>`<div class="s-row ray"><span class="av grp" aria-hidden="true">${AISLE_ICON[c]||''}</span><div class="s-txt"><b>${esc(c)}</b></div>
+    <button type="button" class="iconbtn" data-ray="${esc(c)}" data-d="-1" aria-label="Monter ${esc(c)}"${i===0?' disabled':''}>${ICON.up}</button><button type="button" class="iconbtn" data-ray="${esc(c)}" data-d="1" aria-label="Descendre ${esc(c)}"${i===o.length-1?' disabled':''}>${ICON.down}</button></div>`).join('');
+}
+function moveAisle(c,d){
+  const o=aisleOrder(), i=o.indexOf(c), j=i+d; if(i<0||j<0||j>=o.length) return;
+  o.splice(i,1); o.splice(j,0,c); S.rayons={order:o}; renderRayons(); render();
+  if(db) sendLater('rayons',()=>db.doc('state/rayons').set({order:o}).catch(()=>toast('Enregistrement impossible, réessayez.')));
+}
+/* ---------- Articles habituels (fenêtre) ---------- */
+function renderHabits(){
+  const el=$('#hab-list'); if(!el) return;
+  const l=habitsList();
+  el.innerHTML=l.length?l.map(([id,h])=>{const on=onList(h.t);return `<label class="item hab${on?' done':''}"><input type="checkbox" data-hab="${esc(id)}"${on?' checked disabled':''}><span><span class="n">${esc(h.t)}</span>${on?'<span class="from">Déjà dans la liste</span>':''}</span><button type="button" class="iconbtn delx" data-delhab="${esc(id)}" aria-label="Retirer ${esc(h.t)} des habituels">✕</button></label>`}).join('')
+    :'<p class="hint">Rien pour l’instant. Ajoutez ci-dessus ce que vous rachetez souvent : lait, pain, papier toilette…</p>';
+  habCount();
+}
+function habCount(){const n=document.querySelectorAll('#hab-list input:checked:not(:disabled)').length;const b=$('#hab-go');if(b){b.disabled=!n;b.textContent=n?`Ajouter ${n} article${n>1?'s':''} à la liste`:'Cochez ce qu’il faut racheter'}}
+/* ---------- Sauvegarde du carnet ---------- */
+const blobToDataUrl=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+async function exportCarnet(){
+  const btn=$('#exp-btn'); btn.disabled=true; btn.textContent='Préparation…';
+  try{
+    const recipes={};
+    for(const [id,r] of Object.entries(S.recipes)){
+      const c={...r};
+      // Les photos sont mises dans le fichier, pour que le carnet se suffise à lui-même.
+      if(c.img&&!c.img.startsWith('data:')){try{const res=await fetch(c.img);if(res.ok){const b=await res.blob();if(b.size<3e6)c.img=await blobToDataUrl(b)}}catch(e){}}
+      recipes[id]=c;
+    }
+    const out={app:'nos-recettes',version:1,carnet:(window.CARNET&&window.CARNET.name)||'',date:new Date().toISOString(),recipes,
+      menu:{items:S.menu,plan:S.plan},courses:{extras:S.extras,checked:S.checked,adj:S.adj,always:S.always},habituels:S.habits,rayons:S.rayons};
+    const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`nos-recettes-${(out.carnet||'carnet').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-')}-${out.date.slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);
+    try{localStorage.setItem('lastExport',String(Date.now()))}catch(e){}
+    showLastExport(); toast('Carnet téléchargé');
+  }catch(e){toast('Téléchargement impossible, réessayez.')}
+  btn.disabled=false; btn.textContent='Télécharger le carnet';
+}
+async function importCarnet(file){
+  let data=null; try{data=JSON.parse(await file.text())}catch(e){}
+  if(!data||data.app!=='nos-recettes'||!data.recipes){toast('Ce fichier n’est pas une sauvegarde de Nos Recettes.');return}
+  const ids=Object.keys(data.recipes).filter(id=>!S.recipes[id]);
+  if(!ids.length){toast('Toutes ces recettes sont déjà dans le carnet.');return}
+  const btn=$('#exp-btn'); btn.disabled=true; let n=0;
+  for(const id of ids){
+    const r={...data.recipes[id]};
+    if(r.img&&r.img.startsWith('data:')){try{if(!assets)throw 0;const up=await assets.upload(await (await fetch(r.img)).blob());r.img=up.url}catch(e){delete r.img}}
+    try{await db.doc('recipes/'+id).set(r);n++}catch(e){}
+  }
+  if(data.habituels&&!habitsList().length){S.habits=data.habituels;upd('state/habituels',{items:data.habituels})}
+  btn.disabled=false; $('#acct').close();
+  toast(n+' recette'+(n>1?'s':'')+' importée'+(n>1?'s':''));
+}
+function showLastExport(){
+  const el=$('#exp-last'); if(!el) return;
+  let t=0; try{t=+localStorage.getItem('lastExport')||0}catch(e){}
+  el.textContent=t?'Dernière sauvegarde sur cet appareil : le '+dateLabel(new Date(t).toISOString())+'.':'Pas encore de sauvegarde sur cet appareil. Le fichier contient les recettes et leurs photos.';
+}
+// Une fois par mois, un rappel discret.
+function remindBackup(){
+  try{const t=+localStorage.getItem('lastExport')||0, r=+localStorage.getItem('lastRemind')||0, now=Date.now();
+    if(now-t>30*864e5&&now-r>7*864e5&&Object.keys(S.recipes).length){localStorage.setItem('lastRemind',String(now));setTimeout(()=>toast('Pensez à télécharger une sauvegarde du carnet (Mon compte).'),1500)}}catch(e){}
 }
 // Recette importée (lien ou photo) : même forme que le carnet, le texte sera relu à l'enregistrement.
 function fromDraft(d){
@@ -467,10 +600,13 @@ function patch(a,b){
   for(const at of b.attributes) if(a.getAttribute(at.name)!==at.value) a.setAttribute(at.name,at.value);
   if(tag==='TEXTAREA'){if(a.textContent!==b.textContent){a.textContent=b.textContent;a.value=b.textContent}return}
   if(a.innerHTML!==b.innerHTML) morphKids(a,b);
+  // Un menu déroulant garde le choix affiché par l'appli (l'autre téléphone a pu changer le jour).
+  if(tag==='SELECT'&&a!==document.activeElement){const o=b.querySelector('option[selected]');const v=o?o.value:'';if(a.value!==v)a.value=v}
 }
 
 function render(){
-  const v=S.edit?'edit':S.detail?'detail':S.view;
+  const v=S.edit?'edit':S.detail?'detail':S.trashView?'trash':S.view;
+  wakeLock(v==='courses');
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.view?'page':'false'));
   const mc=Object.keys(S.menu).filter(id=>S.recipes[id]).length; $('#b-menu').textContent=mc||'';
   const sl=S.ready?shoppingList():[]; const left=sl.filter(i=>!S.checked[i.k]).length; $('#b-courses').textContent=left||'';
@@ -478,7 +614,7 @@ function render(){
   const ae=document.activeElement, fid=ae&&ae.id, sel=fid&&ae.selectionStart, val=ae&&ae.value;
   if(v==='edit'&&$('#ef')) return; // ne pas effacer un formulaire en cours
   if(v==='social'&&$('#s-newgroup')&&Social.busy()) return;
-  const html=v==='edit'?vEdit():v==='detail'?vDetail():v==='menu'?vMenu():v==='courses'?vCourses():v==='social'?Social.html():vRecettes();
+  const html=(v==='social'||v==='edit'?'':netBanner())+(v==='edit'?vEdit():v==='detail'?vDetail():v==='trash'?vTrash():v==='menu'?vMenu():v==='courses'?vCourses():v==='social'?Social.html():vRecettes());
   // Rien n'a changé : on garde la page telle quelle, sans recharger les photos.
   if(html!==render.last){
     const chips=$('#app .chips'), sx=chips?chips.scrollLeft:0;
@@ -492,11 +628,20 @@ function render(){
   if(['q','xt','msg','s-add-in','cfa'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
   if(v==='social') Social.after();
 }
-function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;S.confirmClear=false;render();scrollTo(0,0)}
+function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.trashView=false;S.confirmDel=false;S.confirmClear=false;render();scrollTo(0,0)}
 
 /* ---------- Événements ---------- */
 document.addEventListener('click',async e=>{
+  const dlg=e.target.closest('dialog');
+  if(dlg&&e.target===dlg&&(dlg.id==='rayons'||dlg.id==='habituels')){dlg.close();return}
+  if(e.target.id==='exp-btn'){exportCarnet();return}
   const b=e.target.closest('button,[data-k]'); if(!b) return;
+  if(b.dataset.always){e.preventDefault();const k=b.dataset.always,n=b.dataset.n;S.always={...S.always,[k]:{n}};render();if(db)upd('state/courses',{always:{[k]:{n}}});toast(n+' : retiré de la liste, on en a toujours');return}
+  if(b.dataset.noalways){const k=b.dataset.noalways,a={...S.always};delete a[k];S.always=a;render();if(db)upd('state/courses',{always:{[k]:false}});return}
+  if(b.dataset.ray){moveAisle(b.dataset.ray,+b.dataset.d);return}
+  if(b.dataset.delhab){e.preventDefault();const id=b.dataset.delhab,h={...S.habits};delete h[id];S.habits=h;renderHabits();render();if(db)upd('state/habituels',{items:{[id]:false}});return}
+  if(b.dataset.restore){const id=b.dataset.restore,r={...S.trash[id]};if(!r.title)return;delete r.deletedAt;delete r.deletedBy;
+    try{await db.doc('recipes/'+id).set(r);await db.doc('trash/'+id).delete();toast('Recette restaurée');S.trashView=false;S.detail=id;render();scrollTo(0,0)}catch(err){toast('Restauration impossible, réessayez.')}return}
   if(b.dataset.delx){e.preventDefault();const patch={extras:{},checked:{}};
     for(const id of b.dataset.delx.split(',')){const x=S.extras[id];if(!x)continue;patch.extras[id]={...x,gone:true};patch.checked['x:'+id]=false}
     S.extras={...S.extras,...patch.extras};render();if(db)upd('state/courses',patch);toast('Article supprimé');return}
@@ -521,8 +666,15 @@ document.addEventListener('click',async e=>{
   if(a==='copyto'){Social.copyTo(S.detail,S.recipes[S.detail]);return}
   if(a==='askdel'){S.confirmDel=true;render();return}
   if(a==='nodel'){S.confirmDel=false;render();return}
-  if(a==='del'){const id=S.detail;try{await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette supprimée');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
-  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};cancelLater();render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
+  if(a==='del'){const id=S.detail,r=S.recipes[id];
+    // La recette passe à la corbeille (30 jours) avant de disparaître pour de bon.
+    try{await db.doc('trash/'+id).set({...r,deletedAt:new Date().toISOString(),deletedBy:(window.ME&&window.ME.profile&&window.ME.profile.name)||''});await db.doc('recipes/'+id).delete();if(S.menu[id])setServ(id,0);toast('Recette mise à la corbeille');go('recettes')}catch(err){toast('Suppression impossible, réessayez.')}return}
+  if(a==='trash'){S.trashView=true;S.detail=null;render();scrollTo(0,0);return}
+  if(a==='habits'){renderHabits();$('#habituels').showModal();setTimeout(()=>$('#hab-in')&&$('#hab-in').focus(),0);return}
+  if(a==='rayons'){renderRayons();$('#rayons').showModal();return}
+  if(a==='rayreset'){S.rayons={order:[]};renderRayons();render();if(db)db.doc('state/rayons').set({order:[]}).catch(()=>toast('Enregistrement impossible, réessayez.'));return}
+  if(a==='habgo'){const ts=[...document.querySelectorAll('#hab-list input:checked:not(:disabled)')].map(i=>(S.habits[i.dataset.hab]||{}).t).filter(Boolean);if(!ts.length)return;addExtras(ts);$('#habituels').close();toast(ts.length+' article'+(ts.length>1?'s':'')+' ajouté'+(ts.length>1?'s':''));return}
+  if(a==='clearmenu'){S.menu={};S.plan={};PEND.menu={};PEND.checked={};cancelLater();render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{},always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
   if(a==='rmchecked'){
     const patch={checked:{},extras:{},hidden:{},adj:{}};
     for(const i of shoppingList()) if(S.checked[i.k]){
@@ -537,11 +689,14 @@ document.addEventListener('click',async e=>{
   if(a==='cfgo'){openClaude();return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
-  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
-    if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{},adj:{}})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
-  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
+  if(a==='clearall'){S.confirmClear=false;S.menu={};S.plan={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
+    if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{},adj:{},always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
+  if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj,always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });
 document.addEventListener('change',e=>{
+  if(e.target.id==='imp-file'){const f=e.target.files[0];e.target.value='';if(f)importCarnet(f);return}
+  if(e.target.dataset&&e.target.dataset.hab){habCount();return}
+  if(e.target.dataset&&e.target.dataset.slot){const id=e.target.dataset.slot,v=e.target.value;S.plan={...S.plan};if(v)S.plan[id]=v;else delete S.plan[id];render();if(db)upd('state/menu',{plan:{[id]:v}});return}
   const qk=e.target.dataset&&e.target.dataset.qin;
   if(qk){const v=Math.round(parseFloat(String(e.target.value).replace(',','.')));const kind=qk[0],id=qk.slice(2);
     const undo=()=>{e.target.value=e.target.getAttribute('value')};
@@ -563,6 +718,7 @@ document.addEventListener('submit',async e=>{
   e.preventDefault();
   if(e.target.id==='cfaddr'){const v=$('#cfa').value.trim();if(!v){toast('Indiquez l’adresse de livraison.');return}S.cfAddr=v;if(db)upd('state/carrefour',{address:v});S.cf={step:'ready'};render();return}
   if(e.target.id==='addx'){const t=$('#xt').value.trim();if(!t)return;$('#xt').value='';addExtra(t);return}
+  if(e.target.id==='hab-add'){const t=$('#hab-in').value.trim();if(!t)return;$('#hab-in').value='';const id='h'+Date.now().toString(36);S.habits={...S.habits,[id]:{t}};renderHabits();render();if(db)upd('state/habituels',{items:{[id]:{t}}});return}
   if(e.target.id==='ef'){
     if(!db){toast('Carnet indisponible ici.');return}
     const old=S.edit.id?S.recipes[S.edit.id]:null; const oldT=new Map();(old?.groups||[]).forEach(g=>g.ing.forEach(i=>oldT.set(i.t,i)));

@@ -314,3 +314,43 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 
 .item.done .ico{opacity:.45;filter:grayscale(1)}
 .shop h2 .aico{display:inline-grid;place-items:center;width:34px;height:34px;margin-right:10px;border-radius:12px;background:var(--accent-soft);font-size:19px;vertical-align:middle}
+
+/* Hors ligne : bandeau discret au-dessus de la page */
+.offline{background:var(--accent-soft);color:var(--accent-text);border-radius:var(--r);padding:10px 14px;font-size:14px;font-weight:600;margin-bottom:14px}
+
+/* Courses : habituels et ordre des rayons, sous la ligne d'ajout */
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin:-8px 0 18px}
+.quick .btn{min-height:40px;padding:0 14px;font-size:14.5px}
+.quick .cnt{background:var(--accent-soft);color:var(--accent-text);border-radius:999px;padding:0 8px;font-size:12.5px;margin-left:2px}
+.always-btn{display:block;margin-top:2px;font-size:12.5px;color:var(--muted);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;border-radius:4px}
+.always-btn:hover{color:var(--accent-text)}
+.item.done .always-btn{display:none}
+.always{margin-top:22px;background:var(--surface);box-shadow:var(--shadow);border-radius:var(--r);padding:14px 16px 16px}
+.always h3{font-size:18px;margin-bottom:2px}
+.always .hint{font-size:13px;color:var(--muted);margin:0 0 10px}
+.always .chip small{font-size:12.5px;color:var(--muted);font-weight:600;margin-left:6px}
+.rays .s-row{gap:8px;padding:6px 8px}
+.rays .av{font-size:18px}
+.rays .iconbtn{width:38px;height:38px}
+.rays .iconbtn:disabled{opacity:.3;cursor:default}
+.rays .s-txt b{font-size:15.5px}
+.hab-list{display:flex;flex-direction:column;max-height:46vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.hab-list .item{grid-template-columns:28px minmax(0,1fr) auto;align-items:center}
+.hab-list .item:first-child{border-top:0}
+.hab-list .item.done .n{text-decoration:none;color:var(--muted)}
+.hab-list .hint{margin:4px 0}
+.acct-row.wrapable{flex-wrap:wrap}
+.acct-row.wrapable .btn{flex:1 1 auto}
+.imp-file{cursor:pointer}
+
+/* Menu : la semaine */
+.week-sec{margin-bottom:18px}
+.week-sec.free{margin-bottom:8px}
+.wk-h{font-size:18px;display:flex;align-items:baseline;gap:10px;margin:0 0 8px;padding-left:4px}
+.wk-h small{font-family:var(--body);font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+.week-sec.free .wk-h{color:var(--muted);font-size:15px}
+.slot{min-height:40px;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:0 32px 0 14px;font-weight:600;font-size:14.5px;color:var(--ink);box-shadow:var(--lift);
+  appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B716C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:16px}
+:root[data-theme="dark"] .slot{background-color:var(--soft);border-color:var(--soft)}
+@media (max-width:560px){.mrow .ctl .slot{flex:1 1 100%}}
+.trash-link{margin-top:24px;text-align:center}
