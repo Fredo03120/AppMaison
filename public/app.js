@@ -318,10 +318,13 @@ function keepPending(pend,data,local){
 function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',{items:{[id]:n>0?n:0}})})}
 // Index dérivé : pour chaque recette, le premier créneau de la semaine où elle est posée.
 function planIndex(){const p={};Object.keys(S.week).sort().forEach(slot=>Object.keys(S.week[slot]).forEach(id=>{if(!p[id])p[id]=slot}));return p}
-// Les cases cochées descendent en bas du rayon, mais seulement 1,5 s après le dernier clic :
-// sinon la liste bouge sous le doigt et le clic suivant tombe sur la mauvaise ligne.
-function toggleCheck(k,v){if(!S.sortChecked)S.sortChecked={...S.checked};clearTimeout(toggleCheck.t);toggleCheck.t=setTimeout(()=>{S.sortChecked=null;render()},1500);
-  PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
+// Une case cochée descend tout de suite en bas du rayon, en glissant pour qu'on voie où elle part.
+function toggleCheck(k,v){const before=flipFirst();
+  PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();flipPlay(before);if(db)upd('state/courses',{checked:{[k]:v}})}
+function flipFirst(){const m=new Map();document.querySelectorAll('.shop label.item[data-key]').forEach(el=>m.set(el.dataset.key,el.getBoundingClientRect().top));return m}
+function flipPlay(m){if(!m.size||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelectorAll('.shop label.item[data-key]').forEach(el=>{const t=m.get(el.dataset.key);if(t==null||!el.animate)return;const d=t-el.getBoundingClientRect().top;
+    if(Math.abs(d)>1)el.animate([{transform:`translateY(${d}px)`},{transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.7,.2,1)'})})}
 
 /* ---------- Rendu ---------- */
 const ICON={
@@ -529,7 +532,7 @@ function vCourses(){
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le panier de recettes sera vidé aussi, pour tout le groupe. Le menu de la semaine reste.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <button type="button" class="cf-card" data-act="carrefour" aria-label="Panier Carrefour : ${done} sur ${items.length} dans le panier, pour ${nrec} recette(s). Envoyer la liste à Claude."><span class="cf-ico" aria-hidden="true">${LC.bag}</span><span class="cf-t" aria-hidden="true">Panier Carrefour</span><span class="cf-chev" aria-hidden="true">${ICON.chev}</span><span class="cf-n" aria-hidden="true">${done} sur ${items.length} dans le panier</span><span class="cf-row" aria-hidden="true"><span class="cf-bar"><i style="width:${pct}%"></i></span><span class="cf-rec">pour ${nrec} recette(s)</span></span>${LC.art}</button>
   ${vCarrefour()}${add}
-  <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const sc=S.sortChecked||S.checked,l=byCat[c].sort((a,b)=>(!!sc[a.k]-!!sc[b.k])||a.n.localeCompare(b.n,'fr'));
+  <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const sc=S.checked,l=byCat[c].sort((a,b)=>(!!sc[a.k]-!!sc[b.k])||a.n.localeCompare(b.n,'fr'));
    const fold=!!S.fold[c], left=l.filter(i=>!S.checked[i.k]).length;
    return `<section data-key="c:${esc(c)}" class="${fold?'fold':''}"><h2><button type="button" class="aisle-h" data-fold="${esc(c)}" aria-expanded="${!fold}"><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span><span class="aname">${esc(c)}</span><small>${left} restant(s)</small><span class="achev" aria-hidden="true">${ICON.chev}</span></button></h2>${fold?'':`${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
    ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
