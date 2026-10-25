@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={adj:{},recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null};
+const S={adj:{},recipes:{},menu:{},checked:{},extras:{},hidden:{},confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:''};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -246,6 +246,7 @@ async function boot(){
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;render()},()=>{S.offline=true;render()});
   db.doc('state/menu').onSnapshot(d=>{const it=keepPending(PEND.menu,{...((d.exists&&d.data().items)||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));render()});
   db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});render()});
+  db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';render()});
 }
 async function upd(path,patch){
   try{await db.doc(path).update(patch)} // doc_merge crée le document s'il n'existe pas
@@ -350,6 +351,36 @@ function vMenu(){
    <div class="ctl"><div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`}).join('')}</div>`;
 }
+/* ---------- Panier Carrefour ----------
+   Claude remplit le panier avec le connecteur officiel Carrefour (à ajouter une fois dans Claude) :
+   l'appli ouvre Claude avec la demande toute prête, ce qui reste à acheter et l'adresse de livraison. */
+function cfItems(){
+  return shoppingList().filter(i=>!S.checked[i.k]&&i.c!=='Placard').map(i=>({n:i.n,
+    q:i.extra?(i.xq>1?String(i.xq):''):(S.adj[i.k]>0||i.hand||packCalc(i))?totalText(i,S.adj[i.k]||0):i.qty}));
+}
+function cfPrompt(items){
+  return `Avec le connecteur Carrefour, remplis mon panier en livraison à domicile au ${S.cfAddr}.
+Pour chaque article, choisis le produit le plus courant (marque Carrefour ou marque connue, prix raisonnable) dans le format le plus proche de la quantité, et ajoute tout au panier en une fois sans me redemander. Ne commande pas : je vérifie et je paie sur carrefour.fr. À la fin, donne-moi le lien du panier, le total et ce que tu n'as pas trouvé.
+
+Liste de courses :
+${items.map(i=>'- '+i.n+(i.q?' : '+i.q:'')).join('\n')}`;
+}
+function openClaude(){
+  const items=cfItems(); if(!items.length){toast('Rien à envoyer : tout est coché.');return}
+  const t=cfPrompt(items);
+  // Si Claude s'ouvre sans le texte, il est aussi dans le presse-papiers.
+  try{navigator.clipboard&&navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(t),'_blank','noopener');
+  S.cf={step:'sent',n:items.length};render();
+}
+function vCarrefour(){
+  const c=S.cf; if(!c) return '';
+  const close='<button class="btn ghost" data-act="cfclose">Fermer</button>';
+  if(c.step==='addr') return `<form class="confirm cf" id="cfaddr" style="margin-bottom:14px"><span style="flex-basis:100%">Livraison Carrefour à domicile : à quelle adresse ? Elle sera gardée pour tout le groupe.</span><input id="cfa" autocomplete="street-address" value="${esc(c.v??S.cfAddr)}" placeholder="Rue, code postal, ville" aria-label="Adresse de livraison" style="flex:1;min-width:200px"><button class="btn primary">Continuer</button>${close}</form>`;
+  if(c.step==='sent') return `<div class="confirm cf" style="margin-bottom:14px" role="status"><span style="flex-basis:100%">Claude s’est ouvert avec ${c.n} article(s) : envoyez le message, il remplit le panier puis donne le lien carrefour.fr pour vérifier et payer. Si le message est vide, collez-le : il est copié.</span><button class="btn" data-act="cfgo">Rouvrir Claude</button>${close}</div>`;
+  const n=cfItems().length;
+  return `<div class="confirm cf" style="margin-bottom:14px"><span style="flex-basis:100%">Claude va remplir le panier Carrefour avec ${n} article(s), livré au ${esc(S.cfAddr)}. Le placard (sel, huile, farine…) n’est pas envoyé.</span><button class="btn primary" data-act="cfgo">Ouvrir Claude</button><button class="btn ghost" data-act="cfaddr">Changer d’adresse</button>${close}</div>`;
+}
 function vCourses(){
   const items=shoppingList();
   const sug=suggestions(S.xq||'');
@@ -358,7 +389,8 @@ function vCourses(){
   if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
   const done=items.filter(i=>S.checked[i.k]).length;
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
-  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button></div>
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button>${items.some(i=>!S.checked[i.k])?'<button class="btn primary" data-act="carrefour">🛒 Panier Carrefour</button>':''}</div>
+  ${vCarrefour()}
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le menu sera vidé aussi, pour tout le groupe.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <p class="progress">${done} sur ${items.length} dans le panier · pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</p>${add}
   <div class="shop">${SHOP_ORDER.filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
@@ -456,7 +488,8 @@ function render(){
       if(S.centerChip&&on) nc.scrollTo({left:nc.scrollLeft+on.getBoundingClientRect().left-nc.getBoundingClientRect().left-(nc.clientWidth-on.offsetWidth)/2,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
   }
   S.centerChip=false;
-  if(['q','xt','msg','s-add-in'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
+  if(fid==='cfa'&&S.cf&&S.cf.step==='addr')S.cf.v=val;
+  if(['q','xt','msg','s-add-in','cfa'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
   if(v==='social') Social.after();
 }
 function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.confirmDel=false;S.confirmClear=false;render();scrollTo(0,0)}
@@ -498,6 +531,10 @@ document.addEventListener('click',async e=>{
     }
     S.checked={...S.checked,...patch.checked};S.extras={...S.extras,...patch.extras};S.hidden={...S.hidden,...patch.hidden};S.adj={...S.adj,...patch.adj};render();
     if(db)upd('state/courses',patch);toast('Articles cochés retirés');return}
+  if(a==='carrefour'){if(S.cfAddr){S.cf={step:'ready'};render()}else{S.cf={step:'addr'};render();setTimeout(()=>$('#cfa')&&$('#cfa').focus(),0)}return}
+  if(a==='cfaddr'){S.cf={step:'addr'};render();setTimeout(()=>$('#cfa')&&$('#cfa').focus(),0);return}
+  if(a==='cfclose'){S.cf=null;render();return}
+  if(a==='cfgo'){openClaude();return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
   if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
@@ -524,6 +561,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}if(e.target.id==='xt'){S.xq=e.target.value;render()}});
 document.addEventListener('submit',async e=>{
   e.preventDefault();
+  if(e.target.id==='cfaddr'){const v=$('#cfa').value.trim();if(!v){toast('Indiquez l’adresse de livraison.');return}S.cfAddr=v;if(db)upd('state/carrefour',{address:v});S.cf={step:'ready'};render();return}
   if(e.target.id==='addx'){const t=$('#xt').value.trim();if(!t)return;$('#xt').value='';addExtra(t);return}
   if(e.target.id==='ef'){
     if(!db){toast('Carnet indisponible ici.');return}
