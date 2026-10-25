@@ -729,3 +729,6 @@ header.top::after,.login-band::after{opacity:.45;background-image:url("data:imag
 .hab-list .item .ico{display:none}
 @media (max-width:360px){.shop .item{grid-template-columns:30px minmax(0,1fr)}.shop .item:has(.xstep):not(:has(.delx)){grid-template-columns:30px minmax(0,1fr) auto}.shop .item:has(.delx){grid-template-columns:30px minmax(0,1fr) auto auto}.shop .item .ico{display:none}}
 .list-top{flex-wrap:nowrap}.list-top .page-t{font-size:26px;min-width:0}.list-top .btn.pill{flex:none;padding:0 12px;font-size:14px}
+.shop .item .ico{overflow:hidden}
+.shop .item .ico img{width:100%;height:100%;object-fit:cover;display:block}
+.cf-logo{object-fit:contain}

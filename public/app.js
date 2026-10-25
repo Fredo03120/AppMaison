@@ -200,6 +200,22 @@ function adjText(e,n){const pc=packCalc(e);if(pc)return n+' '+(n>1?pc.P[4]:pc.P[
 // Icône de chaque rayon.
 const ING_ICON=[[/aubergine/,'🍆'],[/tomate/,'🍅'],[/basilic|persil|coriandre|ciboulette|menthe|thym|romarin|herbe/,'🌿'],[/oignon|echalote/,'🧅'],[/\bail\b/,'🧄'],[/carotte/,'🥕'],[/pomme de terre|patate/,'🥔'],[/pomme/,'🍎'],[/poire/,'🍐'],[/citron/,'🍋'],[/orange/,'🍊'],[/banane/,'🍌'],[/fraise/,'🍓'],[/raisin/,'🍇'],[/poivron/,'🫑'],[/salade|laitue|roquette|epinard|chou/,'🥬'],[/champignon/,'🍄'],[/courgette|concombre/,'🥒'],[/brocoli/,'🥦'],[/avocat/,'🥑'],[/mais/,'🌽'],[/\boeufs?\b/,'🥚'],[/beurre/,'🧈'],[/fromage|parmesan|gruyere|emmental|mozzarella|chevre|comte|feta|cheddar/,'🧀'],[/lait|creme|yaourt/,'🥛'],[/poulet|volaille|dinde/,'🍗'],[/boeuf|steak|viande|veau|agneau|hache/,'🥩'],[/lardon|jambon|bacon|porc|saucisse|chorizo/,'🥓'],[/saumon|thon|poisson|cabillaud|crevette/,'🐟'],[/pain|baguette|brioche/,'🥖'],[/farine|levure/,'🌾'],[/riz/,'🍚'],[/pates|spaghetti|penne|tagliatelle|nouille|lasagne/,'🍝'],[/huile|olive/,'🫒'],[/sel|poivre|epice|curry|paprika|cumin|cannelle|muscade/,'🧂'],[/sucre|miel|sirop|confiture/,'🍯'],[/chocolat|cacao/,'🍫'],[/vin\b/,'🍷'],[/biere/,'🍺'],[/\beau\b/,'💧'],[/cafe/,'☕'],[/\bthe\b|tisane/,'🍵'],[/jus/,'🧃'],[/papier|essuie|mouchoir/,'🧻'],[/lessive|savon|vaisselle|eponge|nettoyant/,'🧽'],[/dentifrice|shampo|gel douche/,'🧴']];
 function ingIcon(n,c){const t=plain(n||'');for(const [re,e] of ING_ICON)if(re.test(t))return e;return AISLE_ICON[c]||'🛒'}
+/* ---------- Photos des ingrédients ----------
+   Une vraie photo par article, prise sur Wikipédia (vignette de l'article du même nom), gardée sur l'appareil.
+   Sans photo (page absente, hors ligne), on garde l'icône. */
+const IMG=(()=>{try{return JSON.parse(localStorage.getItem('imgs')||'{}')}catch(e){return {}}})();
+const IMG_BUSY=new Set();
+function imgKey(n){return plain(n).trim().replace(/\s+/g,' ')}
+function imgFor(n){const k=imgKey(n);if(!k)return '';if(IMG[k]!==undefined)return IMG[k];if(navigator.onLine!==false&&!IMG_BUSY.has(k)){IMG_BUSY.add(k);fetchImg(k,n.trim())}return ''}
+async function wikiThumb(title){const r=await fetch('https://fr.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/\s+/g,'_')),{headers:{accept:'application/json'}});
+  if(r.status===404)return '';if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.type==='disambiguation')return '';return (j.thumbnail&&j.thumbnail.source)||''}
+async function fetchImg(k,n){try{
+    const tries=[n];const sing=n.replace(/(e?s)$/,'');if(sing!==n&&sing.length>2)tries.push(sing);const first=n.split(/\s+/)[0];if(first.length>3&&first!==n&&first!==sing)tries.push(first);
+    let url='';for(const t of tries){url=await wikiThumb(t);if(url)break}
+    IMG[k]=url;try{localStorage.setItem('imgs',JSON.stringify(IMG))}catch(e){}
+    clearTimeout(fetchImg.t);fetchImg.t=setTimeout(render,80)
+  }catch(e){setTimeout(()=>IMG_BUSY.delete(k),30000)}}
+function ingPic(n,c){const u=imgFor(n);return u?`<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">`:ingIcon(n,c)}
 const AISLE_ICON={'Boulangerie':'🥖','Fruits & légumes':'🥬','Viandes & poissons':'🥩','Crèmerie & fromages':'🧀','Épicerie':'🥫','Boissons':'🧃','Surgelés':'🧊','Hygiène & beauté':'🧴','Entretien & maison':'🧽','Bébé & animaux':'🐾','Placard':'🧂','Divers':'🛒'};
 function shoppingList(){
   const map=new Map();
@@ -518,17 +534,18 @@ function vCourses(){
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
   const nrec=Object.keys(S.menu).filter(id=>S.recipes[id]).length, pct=Math.round(100*done/items.length);
   const CF='<svg class="cf-logo" viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20c0-7 5-12 12-12 4 0 7 1.5 9 4l-4 4c-1.2-1.5-3-2.4-5-2.4-3.6 0-6 2.8-6 6.4s2.4 6.4 6 6.4c2 0 3.8-.9 5-2.4l4 4c-2 2.5-5 4-9 4-7 0-12-5-12-12z" fill="#1E4FA3"/><path d="M29 14l5 6-5 6z" fill="#D7222D"/></svg>';
+  const cfl=imgFor('Carrefour');const logo=cfl?`<img class="cf-logo" src="${esc(cfl)}" alt="" onerror="this.remove()">`:CF;
   return `<div class="toolbar list-top"><h2 class="page-t">Liste de courses</h2>${done?`<button class="btn pill" data-act="uncheck"><span class="ring" aria-hidden="true"></span>Tout décocher</button>`:''}</div>
   <div class="list-acts">${done?`<button class="btn pill on" data-act="rmchecked">${ICON.check}Retirer les cochés</button>`:''}<button class="btn pill ghost" data-act="askclear">${ICON.trash}Tout vider</button></div>
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le panier de recettes sera vidé aussi, pour tout le groupe. Le menu de la semaine reste.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
-  <div class="cf-card" id="cf-card"><button type="button" class="cf-head" data-act="carrefour" aria-label="Panier Carrefour : envoyer la liste">${CF}<b>Panier Carrefour</b>${ICON.chev}</button>
+  <div class="cf-card" id="cf-card"><button type="button" class="cf-head" data-act="carrefour" aria-label="Panier Carrefour : envoyer la liste">${logo}<b>Panier Carrefour</b>${ICON.chev}</button>
     <p class="progress"><span><b>${done} sur ${items.length}</b> dans le panier</span><span>pour ${nrec} recette(s)</span><span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span></p>${ICON.cart}</div>
   <p class="progress mini" id="progress-mini" aria-hidden="true"><span><b>${done} sur ${items.length}</b> dans le panier</span><span class="bar"><i style="width:${pct}%"></i></span></p>
   ${vCarrefour()}${add}
   <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const sc=S.sortChecked||S.checked,l=byCat[c].sort((a,b)=>(!!sc[a.k]-!!sc[b.k])||a.n.localeCompare(b.n,'fr'));
    const fold=!!S.fold[c];
    return `<section data-key="c:${esc(c)}" class="${fold?'fold':''}"><h2><button type="button" class="aisle-h" data-fold="${esc(c)}" aria-expanded="${!fold}"><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span><span class="aname">${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small>${ICON.chev}</button></h2>${fold?'':`${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span class="ico" aria-hidden="true">${ingIcon(i.n,c)}</span><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span class="ico" aria-hidden="true">${ingPic(i.n,c)}</span><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
      :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}${!i.extra&&!i.hand&&(c==='Placard'||c==='Épicerie')?`<button type="button" class="linkbtn always-btn" data-always="${esc(i.k)}" data-n="${esc(i.n)}">On en a toujours</button>`:''}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}`}</section>`}).join('')}</div>${vAlways()}`;
 }
 /* ---------- Ordre des rayons (fenêtre) ---------- */
