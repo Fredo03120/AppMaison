@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={adj:{},recipes:{},menu:{},plan:{},checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0,menuTab:(()=>{try{return localStorage.getItem('menuTab')||'liste'}catch(e){return 'liste'}})()};
+const S={adj:{},recipes:{},menu:{},plan:{},week:{},checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0,menuTab:(()=>{try{return localStorage.getItem('menuTab')||'liste'}catch(e){return 'liste'}})()};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -254,7 +254,11 @@ async function boot(){
   assets=await claude.use('assets').catch(()=>null);
   // Sans réseau, la copie gardée sur le téléphone s'affiche ; « hors ligne » seulement s'il n'y a rien du tout.
   db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;S.offline=false;render();remindBackup()},()=>{if(!S.ready){S.offline=true;render()}});
-  db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{};const it=keepPending(PEND.menu,{...(x.items||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));S.plan=Object.fromEntries(Object.entries(x.plan||{}).filter(([,v])=>v));render()});
+  db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{};const it=keepPending(PEND.menu,{...(x.items||{})});S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));
+    // Ancien format : le créneau était rangé dans le menu (plan). On le déplace une fois vers la semaine.
+    const old=Object.entries(x.plan||{}).filter(([,v])=>v);if(old.length){const slots={},clr={};old.forEach(([id,v])=>{(slots[v]=slots[v]||{})[id]=true;clr[id]=''});upd('state/semaine',{slots});upd('state/menu',{plan:clr})}
+    render()});
+  db.doc('state/semaine').onSnapshot(d=>{const x=d.exists?d.data():{};S.week={};Object.entries(x.slots||{}).forEach(([slot,ids])=>{const l=Object.keys(ids||{}).filter(id=>ids[id]);if(l.length)S.week[slot]=Object.fromEntries(l.map(id=>[id,true]))});S.plan=planIndex();render()});
   db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{};S.checked=keepPending(PEND.checked,{...(x.checked||{})});S.extras=keepPending(PEND.extras,{...(x.extras||{})});S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})});S.always=x.always||{};render()});
   db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';render()});
   db.doc('state/rayons').onSnapshot(d=>{S.rayons=d.exists?d.data():null;render();renderRayons()});
@@ -303,7 +307,9 @@ function keepPending(pend,data){
   }
   return data;
 }
-function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else{delete S.menu[id];if(S.plan[id]){S.plan={...S.plan};delete S.plan[id]}}render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',n>0?{items:{[id]:n}}:{items:{[id]:0},plan:{[id]:''}})})}
+function setServ(id,n){PEND.menu[id]={v:n,t:Date.now()};S.menu={...S.menu};if(n>0)S.menu[id]=n;else delete S.menu[id];render();if(db)sendLater('m:'+id,()=>{PEND.menu[id]&&(PEND.menu[id].t=Date.now());upd('state/menu',{items:{[id]:n>0?n:0}})})}
+// Index dérivé : pour chaque recette, le premier créneau de la semaine où elle est posée.
+function planIndex(){const p={};Object.keys(S.week).sort().forEach(slot=>Object.keys(S.week[slot]).forEach(id=>{if(!p[id])p[id]=slot}));return p}
 function toggleCheck(k,v){PEND.checked[k]={v,t:Date.now()};S.checked={...S.checked,[k]:v};render();if(db)upd('state/courses',{checked:{[k]:v}})}
 
 /* ---------- Rendu ---------- */
@@ -336,10 +342,11 @@ function metaLine(r){const m=(r.meta||[]).filter(x=>!/^Portion/.test(x[0])).map(
   return (r.ptxt?`<span>${ICON.user}${esc(r.ptxt)}</span>`:'')+(m[0]?`<span>${ICON.clock}${esc(m[0])}</span>`:'')}
 function servLabel(r,n){if(!r.portions) return n===1?'1 fournée':n+' fournées';return (r.ptxt||'').match(/\d/)?r.ptxt.replace(/\d+(\s*à\s*\d+)?/,n):n+' personnes'}
 /* ---------- Planning de la semaine ----------
-   Chaque recette du menu peut être posée sur un jour et un repas (« 2-soir » = mercredi soir) ; sinon elle est « à caser ». */
+   Le menu de la semaine (state/semaine) est indépendant du panier de recettes (state/menu) qui remplit les courses.
+   Une case = un jour et un repas (« 2-soir » = mercredi soir) ; une recette y reste jusqu'à ce qu'on valide « repas fait ». */
 const DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'], MEALS=[['midi','midi'],['soir','soir']];
 function slotSelect(id){const cur=S.plan[id]||'';
-  return `<select class="slot" data-slot="${esc(id)}" aria-label="Jour et repas"><option value=""${cur?'':' selected'}>À caser</option>${DAYS.map((d,i)=>MEALS.map(([m,ml])=>`<option value="${i}-${m}"${cur===i+'-'+m?' selected':''}>${d} ${ml}</option>`).join('')).join('')}</select>`}
+  return `<select class="slot" data-slot="${esc(id)}" aria-label="Jour et repas"><option value=""${cur?'':' selected'}>Pas dans la semaine</option>${DAYS.map((d,i)=>MEALS.map(([m,ml])=>`<option value="${i}-${m}"${cur===i+'-'+m?' selected':''}>${d} ${ml}</option>`).join('')).join('')}</select>`}
 function dateLabel(iso){return new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}
 
 function vRecettes(){
@@ -368,7 +375,7 @@ function vTrash(){
    <div class="ctl"><button class="btn" data-restore="${esc(id)}">Restaurer</button></div></div>`).join('')}</div>`:'<div class="empty"><h2>La corbeille est vide</h2></div>'}`;
 }
 function card([id,r]){return `<article class="card" data-key="${esc(id)}"><button class="open" data-open="${esc(id)}"><div class="thumb">${thumb(r)}</div><div class="txt"><h3>${esc(r.title)}</h3><span class="meta">${metaLine(r)}</span></div></button>
-     <button class="add" data-toggle="${esc(id)}" aria-pressed="${!!S.menu[id]}" aria-label="${S.menu[id]?'Retirer du menu':'Ajouter au menu'} : ${esc(r.title)}">${S.menu[id]?ICON.check:ICON.plus}</button></article>`;
+     <button class="add" data-toggle="${esc(id)}" aria-pressed="${!!S.menu[id]}" aria-label="${S.menu[id]?'Retirer du panier':'Ajouter au panier'} : ${esc(r.title)}">${S.menu[id]?ICON.check:ICON.plus}</button></article>`;
 }
 function vDetail(){
   const id=S.detail, r=S.recipes[id];
@@ -381,7 +388,7 @@ function vDetail(){
   <div class="detail"><div class="ings">
     ${r.img?`<div class="hero"><img src="${esc(r.img)}" alt="${esc(r.alt||r.title)}"></div>`:''}
     <div class="servings" aria-label="Quantité"><button data-serv="-1" aria-label="Moins">−</button><span>${esc(servLabel(r,serv))}</span><button data-serv="1" aria-label="Plus">+</button></div>
-    <div class="actions"><button class="btn ${inMenu?'':'primary'}" data-toggle="${esc(id)}">${inMenu?ICON.check+'Dans le menu':ICON.plus+'Ajouter au menu'}</button></div>
+    <div class="actions"><button class="btn ${inMenu?'':'primary'}" data-toggle="${esc(id)}">${inMenu?ICON.check+'Dans le panier':ICON.plus+'Ajouter au panier'}</button></div>
     <h2 style="margin-top:22px">Ingrédients</h2>${ings||'<p class="status">Pas d’ingrédients notés.</p>'}
   </div>
   <div class="steps">
@@ -402,18 +409,21 @@ function vMenu(){
    <div class="ctl">${slotSelect(id)}<div class="servings"><button data-mserv="${esc(id)}" data-d="-1" aria-label="Moins">−</button><span class="sv">${qin('m:'+id,n,'Nombre')} ${esc(servLabel(r,n).replace(String(n),'').trim())}</span><button data-mserv="${esc(id)}" data-d="1" aria-label="Plus">+</button></div>
    <button class="iconbtn" data-toggle="${esc(id)}" aria-label="Retirer du menu">✕</button></div></div>`};
   // Une tuile par recette posée sur un repas : toucher ouvre la recette, ✕ la remet « à caser ».
-  const tile=id=>{const r=S.recipes[id];return `<div class="tile" data-key="p:${esc(id)}"><button class="tile-open" data-open="${esc(id)}"><span class="thumb">${thumb(r)}</span><span class="tile-t">${esc(r.title)}</span><span class="tile-n">${esc(servLabel(r,S.menu[id]))}</span></button><button class="tile-x" data-unslot="${esc(id)}" aria-label="Enlever ${esc(r.title)} de ce repas">✕</button></div>`};
-  const cell=(i,m)=>{const l=ids.filter(id=>S.plan[id]===i+'-'+m).sort((a,b)=>S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
-    return `<div class="cell${l.length?'':' free'}" data-key="s:${i}-${m}"><span class="cell-m" aria-hidden="true">${m==='midi'?'Midi':'Soir'}</span>${l.map(tile).join('')}<button class="cell-add" data-pick="${i}-${m}" aria-label="Ajouter une recette ${DAYS[i].toLowerCase()} ${m}">${ICON.plus}</button></div>`};
+  // Une tuile par recette posée sur un repas : toucher ouvre la recette, ✓ valide le repas (la tuile disparaît), ✕ l'enlève.
+  const tile=(slot,id)=>{const r=S.recipes[id];return `<div class="tile" data-key="p:${slot}:${esc(id)}"><button class="tile-open" data-open="${esc(id)}"><span class="thumb">${thumb(r)}</span><span class="tile-t">${esc(r.title)}</span><span class="tile-n">${S.menu[id]?esc(servLabel(r,S.menu[id])):'Pas dans le panier'}</span></button><span class="tile-acts"><button class="tile-ok" data-cooked="${esc(id)}" data-s="${slot}" aria-label="Repas fait : ${esc(r.title)}" title="Repas fait">${ICON.check}</button><button class="tile-x" data-unslot="${esc(id)}" data-s="${slot}" aria-label="Enlever ${esc(r.title)} de ce repas" title="Enlever">✕</button></span></div>`};
+  const cell=(i,m)=>{const slot=i+'-'+m,l=Object.keys(S.week[slot]||{}).filter(id=>S.recipes[id]).sort((a,b)=>S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
+    return `<div class="cell${l.length?'':' free'}" data-key="s:${i}-${m}"><span class="cell-m" aria-hidden="true">${m==='midi'?'Midi':'Soir'}</span>${l.map(id=>tile(slot,id)).join('')}<button class="cell-add" data-pick="${i}-${m}" aria-label="Ajouter une recette ${DAYS[i].toLowerCase()} ${m}">${ICON.plus}</button></div>`};
   const grid=`<div class="week" role="table" aria-label="Menus de la semaine">${DAYS.map((d,i)=>`<section class="day" data-key="d:${i}"><h3 class="day-h">${d}</h3>${cell(i,'midi')}${cell(i,'soir')}</section>`).join('')}</div>`;
   // Deux onglets : la liste des recettes choisies, et le tableau de la semaine.
   const tab=S.menuTab||'liste', loose=ids.filter(id=>!S.plan[id]);
-  const tabs=`<div class="seg mtabs" role="tablist" aria-label="Affichage du menu"><button type="button" role="tab" data-mtab="liste" aria-pressed="${tab==='liste'}">Recettes choisies${ids.length?` <span class="cnt">${ids.length}</span>`:''}</button><button type="button" role="tab" data-mtab="semaine" aria-pressed="${tab==='semaine'}">Semaine</button></div>`;
+  const nweek=Object.values(S.week).reduce((n,o)=>n+Object.keys(o).filter(id=>S.recipes[id]).length,0);
+  const tabs=`<div class="seg mtabs" role="tablist" aria-label="Affichage du menu"><button type="button" role="tab" data-mtab="liste" aria-pressed="${tab==='liste'}">Panier${ids.length?` <span class="cnt">${ids.length}</span>`:''}</button><button type="button" role="tab" data-mtab="semaine" aria-pressed="${tab==='semaine'}">Semaine${nweek?` <span class="cnt">${nweek}</span>`:''}</button></div>`;
+  const zone=tab==='semaine'?'Le menu de la semaine reste affiché jusqu’à ce que vous validiez le repas (✓). Il ne vide pas la liste de courses, et la liste ne le vide pas.':'Les recettes du panier remplissent la liste de courses. Le panier se vide avec la liste ; la semaine, elle, reste.';
   const sorted=ids.slice().sort((a,b)=>((S.plan[a]||'~')).localeCompare(S.plan[b]||'~')||S.recipes[a].title.localeCompare(S.recipes[b].title,'fr'));
-  const empty=`<div class="empty" style="margin-top:18px"><h2>Rien au menu pour l’instant</h2><p>Touchez le + sur une recette, ou un + dans le tableau de la semaine. La liste de courses se remplit toute seule.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
-  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2>${ids.length?`<button class="btn ghost" data-act="clearmenu">Vider le menu</button><button class="btn primary" data-view="courses">Voir la liste de courses</button>`:''}</div>
-  ${tabs}
-  ${tab==='semaine'?`${grid}${loose.length?`<p class="hint" style="margin:-8px 0 0">${loose.length} recette${loose.length>1?'s':''} encore à caser : le + d’une case les propose en premier.</p>`:!ids.length?empty:''}`
+  const empty=`<div class="empty" style="margin-top:18px"><h2>Le panier est vide</h2><p>Touchez le + sur une recette : ses ingrédients s’ajoutent à la liste de courses.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>`;
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Le menu</h2>${ids.length&&tab==='liste'?`<button class="btn ghost" data-act="clearmenu">Vider le panier</button><button class="btn primary" data-view="courses">Voir la liste de courses</button>`:''}</div>
+  ${tabs}<p class="hint zone-hint">${zone}</p>
+  ${tab==='semaine'?`${grid}${loose.length?`<p class="hint" style="margin:-8px 0 0">${loose.length} recette${loose.length>1?'s':''} du panier pas encore dans la semaine : le + d’une case les propose en premier.</p>`:''}`
    :ids.length?`<div class="menu-list" data-key="mlist">${sorted.map(row).join('')}</div>`:empty}`;
 }
 /* ---------- Choisir une recette pour un repas (fenêtre) ---------- */
@@ -422,12 +432,15 @@ function renderPick(){
   const q=plain(($('#pick-q')&&$('#pick-q').value)||'').trim();
   const all=Object.entries(S.recipes).filter(([,r])=>!q||plain(r.title).includes(q)).sort((a,b)=>a[1].title.localeCompare(b[1].title,'fr'));
   const loose=all.filter(([id])=>S.menu[id]&&!S.plan[id]), rest=all.filter(([id])=>!(S.menu[id]&&!S.plan[id]));
-  const rowOf=([id,r])=>`<button type="button" class="s-row" data-pickr="${esc(id)}"><span class="thumb pick-th">${thumb(r)}</span><div class="s-txt"><b>${esc(r.title)}</b><span>${S.plan[id]?'Déjà '+esc(slotLabel(S.plan[id]).toLowerCase()):S.menu[id]?'Au menu, à caser':esc(r.cat||'')}</span></div></button>`;
-  el.innerHTML=(loose.length?`<p class="status pick-h">Au menu, à caser</p>${loose.map(rowOf).join('')}`:'')+(rest.length?`${loose.length?'<p class="status pick-h">Toutes les recettes</p>':''}${rest.map(rowOf).join('')}`:'')||'<p class="hint">Aucune recette ne correspond.</p>';
+  const rowOf=([id,r])=>`<button type="button" class="s-row" data-pickr="${esc(id)}"><span class="thumb pick-th">${thumb(r)}</span><div class="s-txt"><b>${esc(r.title)}</b><span>${S.plan[id]?'Déjà '+esc(slotLabel(S.plan[id]).toLowerCase()):S.menu[id]?'Dans le panier, pas encore dans la semaine':esc(r.cat||'')}</span></div></button>`;
+  el.innerHTML=(loose.length?`<p class="status pick-h">Dans le panier</p>${loose.map(rowOf).join('')}`:'')+(rest.length?`${loose.length?'<p class="status pick-h">Toutes les recettes</p>':''}${rest.map(rowOf).join('')}`:'')||'<p class="hint">Aucune recette ne correspond.</p>';
 }
 function slotLabel(s){const [d,m]=s.split('-');return DAYS[+d]+' '+m}
 function openPick(slot){S.pick=slot;$('#pick-title').textContent=slotLabel(slot);const q=$('#pick-q');if(q)q.value='';renderPick();$('#pick').showModal();setTimeout(()=>q&&q.focus(),0)}
-function setSlot(id,v){S.plan={...S.plan};if(v)S.plan[id]=v;else delete S.plan[id];render();if(db)upd('state/menu',{plan:{[id]:v||''}})}
+// Déplace une recette vers un créneau (v vide = elle sort de la semaine). from : n'enlever que de ce créneau-là.
+function setSlot(id,v,from){const patch={};const w={};Object.entries(S.week).forEach(([slot,ids])=>{if(ids[id]&&(!from||from===slot)){patch[slot]={[id]:false};const o={...ids};delete o[id];if(Object.keys(o).length)w[slot]=o}else w[slot]=ids});
+  if(v){w[v]={...(w[v]||{}),[id]:true};patch[v]={...(patch[v]||{}),[id]:true}}S.week=w;S.plan=planIndex();render();if(db&&Object.keys(patch).length)upd('state/semaine',{slots:patch})}
+function addToSlot(id,v){if(S.week[v]&&S.week[v][id])return;const w={...S.week,[v]:{...(S.week[v]||{}),[id]:true}};S.week=w;S.plan=planIndex();render();if(db)upd('state/semaine',{slots:{[v]:{[id]:true}}})}
 /* ---------- Panier Carrefour ----------
    Claude remplit le panier avec le connecteur officiel Carrefour (à ajouter une fois dans Claude) :
    l'appli ouvre Claude avec la demande toute prête, ce qui reste à acheter et l'adresse de livraison. */
@@ -475,7 +488,7 @@ function vCourses(){
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
   return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button>${items.some(i=>!S.checked[i.k])?'<button class="btn primary" data-act="carrefour">🛒 Panier Carrefour</button>':''}</div>
   ${vCarrefour()}
-  ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le menu sera vidé aussi, pour tout le groupe.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
+  ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le panier de recettes sera vidé aussi, pour tout le groupe. Le menu de la semaine reste.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
   <p class="progress"><span><b>${done} sur ${items.length}</b> dans le panier</span><span>pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</span><span class="bar" aria-hidden="true"><i style="width:${Math.round(100*done/items.length)}%"></i></span></p>${add}
   <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const l=byCat[c].sort((a,b)=>(!!S.checked[a.k]-!!S.checked[b.k])||a.n.localeCompare(b.n,'fr'));
    return `<section data-key="c:${esc(c)}"><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
@@ -516,7 +529,7 @@ async function exportCarnet(){
       recipes[id]=c;
     }
     const out={app:'nos-recettes',version:1,carnet:(window.CARNET&&window.CARNET.name)||'',date:new Date().toISOString(),recipes,
-      menu:{items:S.menu,plan:S.plan},courses:{extras:S.extras,checked:S.checked,adj:S.adj,always:S.always},habituels:S.habits,rayons:S.rayons};
+      menu:{items:S.menu},semaine:{slots:S.week},courses:{extras:S.extras,checked:S.checked,adj:S.adj,always:S.always},habituels:S.habits,rayons:S.rayons};
     const blob=new Blob([JSON.stringify(out)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download=`nos-recettes-${(out.carnet||'carnet').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-')}-${out.date.slice(0,10)}.json`;
@@ -661,8 +674,9 @@ document.addEventListener('click',async e=>{
   if(b.dataset.ray){moveAisle(b.dataset.ray,+b.dataset.d);return}
   if(b.dataset.mtab){S.menuTab=b.dataset.mtab;try{localStorage.setItem('menuTab',S.menuTab)}catch(err){}render();return}
   if(b.dataset.pick){openPick(b.dataset.pick);return}
-  if(b.dataset.pickr){const id=b.dataset.pickr,slot=S.pick;$('#pick').close();if(!S.menu[id]){const r=S.recipes[id];setServ(id,(S.preview&&S.preview[id])||r.portions||1)}setSlot(id,slot);toast(S.recipes[id].title+' : '+slotLabel(slot));return}
-  if(b.dataset.unslot){setSlot(b.dataset.unslot,'');return}
+  if(b.dataset.pickr){const id=b.dataset.pickr,slot=S.pick;$('#pick').close();addToSlot(id,slot);toast(S.recipes[id].title+' : '+slotLabel(slot)+(S.menu[id]?'':' · pas dans le panier'));return}
+  if(b.dataset.unslot){setSlot(b.dataset.unslot,'',b.dataset.s);return}
+  if(b.dataset.cooked){const id=b.dataset.cooked;setSlot(id,'',b.dataset.s);toast('Bon appétit ! '+S.recipes[id].title+' est fait.');return}
   if(b.dataset.delhab){e.preventDefault();const id=b.dataset.delhab,h={...S.habits};delete h[id];S.habits=h;renderHabits();render();if(db)upd('state/habituels',{items:{[id]:false}});return}
   if(b.dataset.restore){const id=b.dataset.restore,r={...S.trash[id]};if(!r.title)return;delete r.deletedAt;delete r.deletedBy;
     try{await db.doc('recipes/'+id).set(r);await db.doc('trash/'+id).delete();toast('Recette restaurée');S.trashView=false;S.detail=id;render();scrollTo(0,0)}catch(err){toast('Restauration impossible, réessayez.')}return}
@@ -677,7 +691,7 @@ document.addEventListener('click',async e=>{
   if(b.dataset.view){go(b.dataset.view);return}
   if(b.dataset.cat!==undefined){if(S.cat===b.dataset.cat)return;S.cat=b.dataset.cat;S.centerChip=true;render();if(b.classList.contains('more'))scrollTo(0,0);return}
   if(b.dataset.open){S.detail=b.dataset.open;S.edit=null;S.confirmDel=false;render();scrollTo(0,0);return}
-  if(b.dataset.toggle){const id=b.dataset.toggle,r=S.recipes[id];if(S.menu[id]){setServ(id,0);toast('Retiré du menu')}else{setServ(id,(S.preview&&S.preview[id])||r.portions||1);toast('Ajouté au menu')}return}
+  if(b.dataset.toggle){const id=b.dataset.toggle,r=S.recipes[id];if(S.menu[id]){setServ(id,0);toast('Retiré du panier')}else{setServ(id,(S.preview&&S.preview[id])||r.portions||1);toast('Ajouté au panier : la liste de courses est à jour')}return}
   if(b.dataset.serv){const id=S.detail,r=S.recipes[id];const cur=S.menu[id]||(S.preview&&S.preview[id])||r.portions||1;const n=Math.max(1,cur+ +b.dataset.serv);
     if(S.menu[id]) setServ(id,n); else {S.preview={...(S.preview||{}),[id]:n};render()} return}
   if(b.dataset.mserv){const id=b.dataset.mserv;const n=S.menu[id]+ +b.dataset.d;if(n>=1)setServ(id,n);return}
@@ -698,7 +712,7 @@ document.addEventListener('click',async e=>{
   if(a==='rayons'){renderRayons();$('#rayons').showModal();return}
   if(a==='rayreset'){S.rayons={order:[]};renderRayons();render();if(db)db.doc('state/rayons').set({order:[]}).catch(()=>toast('Enregistrement impossible, réessayez.'));return}
   if(a==='habgo'){const ts=[...document.querySelectorAll('#hab-list input:checked:not(:disabled)')].map(i=>(S.habits[i.dataset.hab]||{}).t).filter(Boolean);if(!ts.length)return;addExtras(ts);$('#habituels').close();toast(ts.length+' article'+(ts.length>1?'s':'')+' ajouté'+(ts.length>1?'s':''));return}
-  if(a==='clearmenu'){S.menu={};S.plan={};PEND.menu={};PEND.checked={};cancelLater();render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{},always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
+  if(a==='clearmenu'){S.menu={};PEND.menu={};PEND.checked={};cancelLater();render();if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:S.extras,hidden:{},always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}}return}
   if(a==='rmchecked'){
     const patch={checked:{},extras:{},hidden:{},adj:{}};
     for(const i of shoppingList()) if(S.checked[i.k]){
@@ -713,7 +727,7 @@ document.addEventListener('click',async e=>{
   if(a==='cfgo'){openClaude();return}
   if(a==='askclear'){S.confirmClear=true;render();return}
   if(a==='noclear'){S.confirmClear=false;render();return}
-  if(a==='clearall'){S.confirmClear=false;S.menu={};S.plan={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
+  if(a==='clearall'){S.confirmClear=false;S.menu={};S.checked={};S.extras={};S.hidden={};S.adj={};PEND.menu={};PEND.checked={};cancelLater();PEND.adj={};PEND.extras={};render();
     if(db){try{await db.doc('state/menu').set({items:{}});await db.doc('state/courses').set({checked:{},extras:{},hidden:{},adj:{},always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}}toast('Liste vidée');return}
   if(a==='uncheck'){S.checked={};PEND.checked={};render();if(db)try{await db.doc('state/courses').set({checked:{},extras:Object.fromEntries(Object.entries(S.extras).filter(([,x])=>x&&!x.gone)),hidden:S.hidden,adj:S.adj,always:S.always})}catch(err){toast('Enregistrement impossible, réessayez.')}return}
 });

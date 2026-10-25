@@ -546,3 +546,21 @@ dialog.acct{border-top:5px solid var(--accent)}
 .always{border-top:0;padding:0 16px 16px}
 .always h3{margin:0 -16px 10px;padding:12px 16px;background:var(--accent-soft);color:var(--accent-text);font-size:17px}
 .always .hint{margin-top:-4px}
+
+/* Semaine indépendante du panier : ✓ repas fait, ✕ enlever. */
+.zone-hint{margin:-6px 0 14px;font-size:13px;color:var(--muted)}
+.tile-acts{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px}
+.tile-open{padding-right:32px}
+.tile-x,.tile-ok{all:unset;cursor:pointer;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:13px}
+.tile-ok .icon{width:16px;height:16px}
+.tile-ok{color:var(--accent-text);background:var(--accent-soft)}
+.tile-ok:hover,.tile-ok:focus-visible{background:var(--accent);color:var(--accent-ink);outline:none}
+.tile-x:hover,.tile-x:focus-visible{background:var(--soft);color:var(--ink);outline:none}
+@media (min-width:860px){
+  .tile-acts{top:6px;right:6px;transform:none;flex-direction:row}
+  .tile-x{background:rgba(255,255,255,.9)}
+  .tile-ok{background:rgba(255,255,255,.9)}
+  :root[data-theme="dark"] .tile-x,:root[data-theme="dark"] .tile-ok{background:rgba(31,35,31,.9)}
+  .tile-open{padding-right:0}
+}
+.cell-m{min-height:30px;line-height:30px;padding-right:34px}
