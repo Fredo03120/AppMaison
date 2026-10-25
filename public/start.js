@@ -12,38 +12,50 @@
   const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
                   set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 
-  async function enter(session) {
-    if (!session) { showLogin(); return; }
-    const uid = session.user.id;
+  // Profil et carnets depuis le serveur (le profil d'un compte tout neuf peut mettre un instant à exister).
+  async function fetchMe(uid) {
     let prof = null;
     for (let i = 0; i < 3 && !prof; i++) {
-      const { data } = await sb.from('profiles').select('*').eq('id', uid).maybeSingle();
+      const { data, error } = await sb.from('profiles').select('*').eq('id', uid).maybeSingle();
+      if (error) return null;
       prof = data; if (!prof) await new Promise(r => setTimeout(r, 600));
     }
     const { data: rows, error } = await sb.from('group_members').select('group_id, joined_at, groups(id, name)').eq('user_id', uid).order('joined_at');
-    let carnets = (rows || []).map(r => r.groups).filter(Boolean); // le plus ancien d'abord : c'est le carnet par défaut
-    if (error || !prof) {
-      // Sans réseau : on rouvre le compte tel qu'il était la dernière fois.
-      let saved = null; try { saved = JSON.parse(store.get('me:' + uid) || 'null'); } catch (e) {}
-      if (!saved) {
-        showLogin();
-        say("Impossible d'ouvrir votre compte pour le moment. Vérifiez la connexion, puis rouvrez l'appli.");
-        return;
-      }
-      prof = saved.profile; carnets = saved.carnets;
-    } else store.set('me:' + uid, JSON.stringify({ profile: prof, carnets }));
-    const saved = store.get('carnet');
-    const cur = carnets.find(c => c.id === saved) || carnets[0] || null;
+    if (error || !prof) return null;
+    return { profile: prof, carnets: (rows || []).map(r => r.groups).filter(Boolean) }; // le plus ancien d'abord : c'est le carnet par défaut
+  }
+  /* L'appli s'ouvre tout de suite avec le compte gardé sur le téléphone, sans attendre le réseau
+     (lent au fond d'un magasin) ; le serveur est consulté en même temps et met le compte à jour. */
+  async function enter(session) {
+    if (!session) { showLogin(); return; }
+    const uid = session.user.id;
+    let saved = null; try { saved = JSON.parse(store.get('me:' + uid) || 'null'); } catch (e) {}
+    if (saved && saved.profile && saved.carnets) apply(session, saved.profile, saved.carnets);
+    const me = await fetchMe(uid);
+    if (me) { store.set('me:' + uid, JSON.stringify(me)); apply(session, me.profile, me.carnets); return; }
+    if (!saved) {
+      showLogin();
+      say("Impossible d'ouvrir votre compte pour le moment. Vérifiez la connexion, puis rouvrez l'appli.");
+    }
+  }
+  function apply(session, prof, list) {
+    const carnets = list.slice();
+    const want = (started && window.CARNET && window.CARNET.id) || store.get('carnet');
+    const cur = carnets.find(c => c.id === want) || carnets[0] || null;
     carnets.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    window.ME = { id: uid, email: session.user.email, created_at: session.user.created_at, profile: prof };
-    window.CARNETS = carnets; window.CARNET = cur;
+    window.ME = { id: session.user.id, email: session.user.email, created_at: session.user.created_at, profile: prof };
+    window.CARNETS = carnets;
+    // Déjà ouvert sur un carnet qu'on a quitté entre-temps : on rouvre sur le carnet par défaut.
+    if (started && window.CARNET && cur && cur.id !== window.CARNET.id) { store.set('carnet', cur.id); location.reload(); return; }
+    window.CARNET = cur;
     login.hidden = true; shell.hidden = false;
     showUser();
     if (started) return;
     started = true;
-    if (cur) { window.setCarnet(cur.id); window.startApp(); }
-    else { window.startApp(); }
-    window.Social && window.Social.start();
+    if (cur) window.setCarnet(cur.id);
+    window.startApp();
+    // Le social (amis, messages) se charge juste après, pour laisser passer d'abord le carnet.
+    setTimeout(() => window.Social && window.Social.start(), 800);
     window.Importer && window.Importer.fromShare();
     if (!prof.name) openAccount("Bienvenue ! Choisissez votre prénom : c'est ce que vos amis verront.");
   }

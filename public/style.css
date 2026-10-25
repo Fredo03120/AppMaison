@@ -1,3 +1,6 @@
+/* Police Nunito servie par l'appli (licence OFL, fichier fonts/OFL.txt) : affichage immédiat et identique hors ligne. */
+@font-face{font-family:'Nunito';font-style:normal;font-weight:200 1000;font-display:swap;src:url(/fonts/nunito.woff2) format('woff2')}
+@font-face{font-family:'Nunito';font-style:italic;font-weight:200 1000;font-display:swap;src:url(/fonts/nunito-italic.woff2) format('woff2')}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{-webkit-text-size-adjust:100%}
 body{margin:0}

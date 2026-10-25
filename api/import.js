@@ -148,8 +148,8 @@ async function withClaude(content) {
 
 async function fetchPage(url) {
   const u = new URL(url);
-  if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|\[)/.test(u.hostname)) throw new Error('bad_url');
-  const r = await fetch(u, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NosRecettes/1.0)', 'Accept-Language': 'fr-FR,fr;q=0.9' } });
+  if (!/^https?:$/.test(u.protocol) || /^(localhost|0\.|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(u.hostname)) throw new Error('bad_url');
+  const r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NosRecettes/1.0)', 'Accept-Language': 'fr-FR,fr;q=0.9' } });
   if (!r.ok) throw new Error('fetch_' + r.status);
   return (await r.text()).slice(0, 3_000_000);
 }
@@ -180,7 +180,7 @@ export default async function handler(req, res) {
     }
     return res.status(400).json({ error: 'empty' });
   } catch (e) {
-    const code = e.code === 'no_key' ? 'no_key' : /^fetch_|bad_url|Invalid URL/.test(e.message) ? 'fetch' : 'server';
+    const code = e.code === 'no_key' ? 'no_key' : /^fetch_|bad_url|Invalid URL|timeout|aborted/i.test(e.message) ? 'fetch' : 'server';
     console.error('import', e);
     return res.status(code === 'server' ? 500 : 400).json({ error: code });
   }

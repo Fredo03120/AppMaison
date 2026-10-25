@@ -11,6 +11,7 @@ Le carnet de recettes partagé de la maison : choisir des recettes au menu rempl
   - `social.js` : l'onglet Social (amis, chats privés et de groupe, création de groupes).
   - `sw.js` et `manifest.webmanifest` : ce qui rend l'appli installable et rapide à ouvrir.
   - `photos/` : les photos des 49 recettes d'origine.
+  - `fonts/` : la police Nunito (licence OFL), servie par l'appli pour s'afficher vite et hors ligne.
 - `supabase/schema.sql` : la base de données et ses règles d'accès (seules les adresses de la table `members` peuvent lire et écrire).
 - `supabase/seed.sql` : les 49 recettes.
 - `supabase/setup.sql` : les deux précédents réunis, à coller en une fois.

@@ -48,13 +48,22 @@ const CATW2=[
 ];
 // Article tapé à la main : « 6 yaourts » → rayon des yaourts ; le sel ajouté exprès s'achète en épicerie.
 function extraCat(t){const it=parseLine(t).items[0];const c=category(it.n.toLowerCase(),'Divers');return c==='Placard'?'Épicerie':c}
+// Expressions des rayons compilées une seule fois, et rayon de chaque nom gardé en mémoire.
+const reEsc=w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const CATW_RE=CATW.slice(1).map(([c,words])=>[c,words.map(w=>new RegExp("(^|[\\s'-])"+reEsc(w)))]);
+const CATW2_RE=CATW2.map(([c,words])=>[c,words.map(w=>new RegExp("(^|[\\s'-])"+reEsc(w)+"[sx]?($|[\\s'-,])"))]);
+const CAT_MEMO=new Map();
 function category(name,fallback='Épicerie'){
+  const key=name+'\u0000'+fallback;if(CAT_MEMO.has(key))return CAT_MEMO.get(key);
+  const c=categoryOf(name,fallback);CAT_MEMO.set(key,c);return c;
+}
+function categoryOf(name,fallback){
   const n=name.toLowerCase();
   if(/^(lait de coco|lait d'avoine|tomates concassées|pulpe|coulis|concentré|bouillon|noix de muscade|cerneaux|noix de pécan)/.test(n)) return 'Épicerie';
   for(const [c,,words] of CATW.filter(x=>x[0]==='Placard')) if(words.includes(n)) return c;
-  for(const [c,words] of CATW.slice(1)) for(const w of words){ if(new RegExp("(^|[\\s'-])"+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(n)) return c; }
+  for(const [c,res] of CATW_RE) for(const re of res){ if(re.test(n)) return c; }
   // Mots entiers ici (au pluriel près) : « vin » ne doit pas attraper « vinaigre ».
-  for(const [c,words] of CATW2) for(const w of words){ if(new RegExp("(^|[\\s'-])"+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"[sx]?($|[\\s'-,])").test(n)) return c; }
+  for(const [c,res] of CATW2_RE) for(const re of res){ if(re.test(n)) return c; }
   return fallback;
 }
 function parseLine(line){
@@ -164,10 +173,12 @@ const PACKS=[
  [['fraises'],'g',250,'barquette','barquettes','250 g'],
 ];
 const SPOON_G={'c. à soupe':15,'c. à café':5,'noix':10,'pincée':0.5,'pincées':0.5};
+const PACK_KEYS=PACKS.map(P=>P[0].map(w=>[w,keyOf(w)])), PACK_MEMO=new Map();
 function packOf(e){
-  const raw=e.n.toLowerCase(),k=keyOf(raw);let best=null;
-  for(const P of PACKS) for(const w of P[0]){const kw=keyOf(w);if((raw===w||k===kw||raw.startsWith(w+' ')||k.startsWith(kw+' '))&&(!best||w.length>best[1]))best=[P,w.length]}
-  return best&&best[0];
+  const raw=e.n.toLowerCase();if(PACK_MEMO.has(raw))return PACK_MEMO.get(raw);
+  const k=keyOf(raw);let best=null;
+  PACKS.forEach((P,i)=>{for(const [w,kw] of PACK_KEYS[i])if((raw===w||k===kw||raw.startsWith(w+' ')||k.startsWith(kw+' '))&&(!best||w.length>best[1]))best=[P,w.length]});
+  const r=best&&best[0];PACK_MEMO.set(raw,r);return r;
 }
 // Nombre de conditionnements pour la recette (et ce qui a été ajouté à la main, compté en conditionnements).
 function packCalc(e){
@@ -253,23 +264,23 @@ async function boot(){
   if(!db){S.offline=true;render();return}
   assets=await claude.use('assets').catch(()=>null);
   // Sans réseau, la copie gardée sur le téléphone s'affiche ; « hors ligne » seulement s'il n'y a rien du tout.
-  db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;S.offline=false;render();remindBackup()},()=>{if(!S.ready){S.offline=true;render()}});
+  db.collection('recipes').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.recipes=o;S.ready=true;S.offline=false;renderSoon();remindBackup()},()=>{if(!S.ready){S.offline=true;render()}});
   db.doc('state/menu').onSnapshot(d=>{const x=d.exists?d.data():{},loc=d.metadata.fromCache;const it=keepPending(PEND.menu,{...(x.items||{})},loc);S.menu=Object.fromEntries(Object.entries(it).filter(([,v])=>v>0));
     // Ancien format : le créneau était rangé dans le menu (plan). On le déplace une fois vers la semaine.
     const old=Object.entries(x.plan||{}).filter(([,v])=>v);if(old.length){const slots={},clr={};old.forEach(([id,v])=>{(slots[v]=slots[v]||{})[id]=true;clr[id]=''});upd('state/semaine',{slots});upd('state/menu',{plan:clr})}
-    render()});
+    renderSoon()});
   db.doc('state/semaine').onSnapshot(d=>{const x=d.exists?d.data():{};S.week={};const mig={};
     Object.entries(x.slots||{}).forEach(([slot,ids])=>{const l=Object.keys(ids||{}).filter(id=>ids[id]);if(!l.length)return;
       const o=slot.match(/^(\d)-(midi|soir)$/);if(o){const k=slotKey(+o[1],o[2],0);mig[slot]=Object.fromEntries(l.map(id=>[id,false]));mig[k]={...(mig[k]||{}),...Object.fromEntries(l.map(id=>[id,true]))};slot=k}
       S.week[slot]={...(S.week[slot]||{}),...Object.fromEntries(l.map(id=>[id,true]))}});
     if(Object.keys(mig).length)upd('state/semaine',{slots:mig});
     S.done={};Object.entries(x.done||{}).forEach(([slot,ids])=>{const l=Object.keys(ids||{}).filter(id=>ids[id]);if(l.length)S.done[slot]=Object.fromEntries(l.map(id=>[id,true]))});
-    S.plan=planIndex();render()});
-  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{},loc=d.metadata.fromCache;S.checked=keepPending(PEND.checked,{...(x.checked||{})},loc);S.extras=keepPending(PEND.extras,{...(x.extras||{})},loc);S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})},loc);S.always=x.always||{};render()});
-  db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';render()});
-  db.doc('state/rayons').onSnapshot(d=>{S.rayons=d.exists?d.data():null;render();renderRayons()});
+    S.plan=planIndex();renderSoon()});
+  db.doc('state/courses').onSnapshot(d=>{const x=d.exists?d.data():{},loc=d.metadata.fromCache;S.checked=keepPending(PEND.checked,{...(x.checked||{})},loc);S.extras=keepPending(PEND.extras,{...(x.extras||{})},loc);S.hidden=x.hidden||{};S.adj=keepPending(PEND.adj,{...(x.adj||{})},loc);S.always=x.always||{};renderSoon()});
+  db.doc('state/carrefour').onSnapshot(d=>{S.cfAddr=(d.exists&&d.data().address)||'';renderSoon()});
+  db.doc('state/rayons').onSnapshot(d=>{S.rayons=d.exists?d.data():null;renderSoon();renderRayons()});
   db.doc('state/habituels').onSnapshot(d=>{S.habits=(d.exists&&d.data().items)||{};renderHabits()});
-  db.collection('trash').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.trash=o;render();purgeTrash()});
+  db.collection('trash').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.trash=o;renderSoon();purgeTrash()});
 }
 // La corbeille se vide toute seule au bout de 30 jours.
 let purged=false;
@@ -356,7 +367,7 @@ const CAT_ICON={
  'Bases':'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10M8 3v3l-2 3v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9l-2-3V3M6 12h12"/></svg>',
 };
 const HOME_MAX=6; // recettes montrées par rayon sur l'accueil, « Voir tout » ouvre le rayon
-function thumb(r){return r.img?`<img src="${esc(r.img)}" alt="" loading="lazy">`:`<span class="ph" aria-hidden="true">${esc((r.title||'?')[0])}</span>`}
+function thumb(r){return r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" decoding="async">`:`<span class="ph" aria-hidden="true">${esc((r.title||'?')[0])}</span>`}
 function metaLine(r){const m=(r.meta||[]).filter(x=>!/^Portion/.test(x[0])).map(x=>x[1]);
   return (r.ptxt?`<span>${ICON.user}${esc(r.ptxt)}</span>`:'')+(m[0]?`<span>${ICON.clock}${esc(m[0])}</span>`:'')}
 function servLabel(r,n){if(!r.portions) return n===1?'1 fournée':n+' fournées';return (r.ptxt||'').match(/\d/)?r.ptxt.replace(/\d+(\s*à\s*\d+)?/,n):n+' personnes'}
@@ -675,12 +686,17 @@ function patch(a,b){
   for(const at of [...a.attributes]) if(!b.hasAttribute(at.name)) a.removeAttribute(at.name);
   for(const at of b.attributes) if(a.getAttribute(at.name)!==at.value) a.setAttribute(at.name,at.value);
   if(tag==='TEXTAREA'){if(a.textContent!==b.textContent){a.textContent=b.textContent;a.value=b.textContent}return}
-  if(a.innerHTML!==b.innerHTML) morphKids(a,b);
+  if(!a.isEqualNode(b)) morphKids(a,b);
   // Un menu déroulant garde le choix affiché par l'appli (l'autre téléphone a pu changer le jour).
   if(tag==='SELECT'&&a!==document.activeElement){const o=b.querySelector('option[selected]');const v=o?o.value:'';if(a.value!==v)a.value=v}
 }
 
+/* Les données qui arrivent du serveur (souvent plusieurs d'un coup) ne redessinent la page qu'une fois,
+   à l'image suivante ; rien à faire si la page a été redessinée entre-temps. */
+let soonId=0;
+function renderSoon(){if(soonId)return;const n=render.n;soonId=requestAnimationFrame(()=>{soonId=0;if(render.n===n)render()})}
 function render(){
+  render.n=(render.n||0)+1;
   const v=S.edit?'edit':S.detail?'detail':S.trashView?'trash':S.view;
   wakeLock(v==='courses');
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.view?'page':'false'));

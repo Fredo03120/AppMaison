@@ -93,7 +93,30 @@
       })
       .subscribe(status => { if (status === 'SUBSCRIBED') reloadAll(); });
   }
-  function reloadAll() { for (const l of listeners) l.load(); }
+  /* Rechargement groupé : une seule requête pour tout le carnet (au lieu d'une par liste suivie),
+     et on ne prévient que les listes dont les données ont vraiment changé. */
+  let reloadT = null, reloading = false, again = false;
+  function reloadAll() { clearTimeout(reloadT); reloadT = setTimeout(reloadNow, 0); }
+  async function reloadNow() {
+    if (reloading) { again = true; return; }
+    if (queue.length) return; // des modifications attendent le réseau : elles seraient écrasées
+    const mine = [...listeners].filter(l => l.prefixed), others = [...listeners].filter(l => !l.prefixed);
+    others.forEach(l => l.load());
+    if (!mine.length) return;
+    if (!prefix) { mine.forEach(l => l.load()); return; }
+    reloading = true;
+    try {
+      const { data, error } = await sb.from('docs').select('path,data').like('path', prefix + '%');
+      if (error) throw error;
+      if (queue.length) return;
+      const fresh = new Map(data.map(r => [r.path, r.data])), changed = [];
+      for (const [p, d] of fresh) { const o = cache.get(p); if (o === undefined || JSON.stringify(o) !== JSON.stringify(d)) { cache.set(p, d); changed.push(p); } }
+      for (const p of [...cache.keys()]) if (p.startsWith(prefix) && !fresh.has(p)) { cache.delete(p); changed.push(p); }
+      if (changed.length) persist();
+      for (const l of mine) if (!l.loaded || changed.some(l.match)) { l.loaded = true; l.fire(); }
+    } catch (e) { mine.forEach(l => l.load()); } // en cas d'échec, chaque liste réessaie et signale l'erreur
+    finally { reloading = false; if (again) { again = false; reloadAll(); } }
+  }
   // Un téléphone en veille perd la connexion temps réel : on recharge au retour.
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { flush(); reloadAll(); } });
   window.addEventListener('online', reloadAll);
@@ -123,13 +146,13 @@
       onSnapshot(next, onErr) {
         ensureChannel();
         const l = {
-          match: p => p === path,
+          match: p => p === path, prefixed: !!prefix && path.startsWith(prefix),
           fire: fc => next(snap(path, fc)),
-          load: async () => { if (queue.length) return; try { await docRef(path).get(); l.fire(); } catch (e) { onErr && onErr(e); } },
+          load: async () => { if (queue.length) return; try { await docRef(path).get(); l.loaded = true; l.fire(); } catch (e) { onErr && onErr(e); } },
         };
         listeners.add(l);
         if (cache.has(path)) l.fire(true); // copie locale d'abord
-        l.load();
+        if (l.prefixed) reloadAll(); else l.load();
         return () => listeners.delete(l);
       },
     };
@@ -156,10 +179,11 @@
         const self = this;
         const emit = () => next(result(docsNow()));
         // Tant que des modifications attendent le réseau, on ne recharge pas : elles seraient écrasées.
-        const l = { match: inCol, fire: emit, load: async () => { if (queue.length) return; try { await self.get(); emit(); } catch (e) { onErr && onErr(e); } } };
+        const l = { match: inCol, prefixed: !!prefix && name.startsWith(prefix), fire: emit,
+          load: async () => { if (queue.length) return; try { await self.get(); l.loaded = true; emit(); } catch (e) { onErr && onErr(e); } } };
         listeners.add(l);
         if (docsNow().length) emit();
-        l.load();
+        if (l.prefixed) reloadAll(); else l.load();
         return () => listeners.delete(l);
       },
     };
