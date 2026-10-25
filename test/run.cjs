@@ -51,7 +51,7 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
 
   // Courses : ordre des rayons, « on en a toujours », habituels.
   await page.click('[data-view="courses"]'); await page.waitForSelector('.shop section');
-  const first = async () => page.locator('.shop section h2 span').first().innerText();
+  const first = async () => page.locator('.shop section h2 .aname').first().innerText();
   ok((await first()).includes('Fruits'), 'rayons : Fruits & légumes en premier par défaut');
   await page.click('[data-act="rayons"]'); await page.waitForSelector('#rayons[open]');
   await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]'); await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]'); await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]');
