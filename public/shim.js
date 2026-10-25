@@ -52,9 +52,13 @@
     return sb.from('docs').delete().eq('path', op.path);
   }
   // Une écriture qui échoue faute de réseau est gardée pour plus tard ; l'appli continue comme si elle avait réussi.
+  // Les envois partent un par un, dans l'ordre : deux clics rapides sur la même case ne peuvent
+  // pas se croiser sur le serveur (sinon le premier pouvait arriver après le second et l'annuler).
+  let chain = Promise.resolve();
   async function write(op) {
     if (queue.length) { queue.push(op); saveQueue(); flush(); return; }
-    const { error } = await send(op);
+    const turn = chain.then(() => send(op)); chain = turn.catch(() => {});
+    const { error } = await turn;
     if (!error) return;
     if (!netError(error)) throw fail(error);
     queue.push(op); saveQueue();
