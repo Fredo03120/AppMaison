@@ -354,3 +354,41 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 :root[data-theme="dark"] .slot{background-color:var(--soft);border-color:var(--soft)}
 @media (max-width:560px){.mrow .ctl .slot{flex:1 1 100%}}
 .trash-link{margin-top:24px;text-align:center}
+
+/* Menu : le tableau de la semaine (jours en lignes sur téléphone, en colonnes sur ordinateur) */
+.week{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:22px}
+.day{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch}
+.day-h{font-size:15px;align-self:center;padding-left:4px}
+.cell{position:relative;min-height:64px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:8px 8px 8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cell.free{background:var(--soft);box-shadow:none;border:1px dashed var(--line)}
+.cell-m{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cell-add{all:unset;cursor:pointer;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent-text);position:absolute;right:8px;top:6px}
+.cell-add .icon{width:16px;height:16px}
+.cell-add:focus-visible{outline:2px solid var(--accent)}
+.tile{position:relative;display:flex;min-width:0}
+.tile-open{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding-right:26px;border-radius:10px}
+.tile-open:focus-visible{outline:2px solid var(--accent)}
+.tile .thumb{width:40px;height:40px;flex:none;border-radius:10px;aspect-ratio:1}
+.tile .thumb .ph{font-size:18px}
+.tile-t{font-weight:700;font-size:13.5px;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+.tile-n{display:none}
+.tile-x{all:unset;cursor:pointer;position:absolute;right:0;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:13px}
+.tile-x:hover,.tile-x:focus-visible{background:var(--soft);color:var(--ink);outline:none}
+@media (min-width:860px){
+  .week{grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+  .day{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr 1fr;gap:6px}
+  .day-h{text-align:center;padding:0;font-size:15px}
+  .cell{min-height:120px;padding:8px}
+  .tile-open{flex-direction:column;align-items:flex-start;padding-right:0;gap:4px}
+  .tile .thumb{width:100%;height:auto;aspect-ratio:4/3;border-radius:10px}
+  .tile-n{display:block;font-size:12px;color:var(--muted)}
+  .tile-x{top:6px;right:6px;transform:none;background:rgba(255,255,255,.9)}
+  :root[data-theme="dark"] .tile-x{background:rgba(31,35,31,.9)}
+}
+.pick-list{display:flex;flex-direction:column;max-height:50vh;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.pick-list .s-row{cursor:pointer;border-radius:12px;border-top:0}
+.pick-list .s-row:hover{background:var(--soft)}
+.pick-th{width:44px;height:44px;flex:none;border-radius:10px;aspect-ratio:1}
+.pick-th .ph{font-size:18px}
+.pick-h{margin:8px 8px 2px;text-transform:uppercase;letter-spacing:.06em;font-size:11.5px;font-weight:700}
+#pick-q{min-height:44px;border:1px solid var(--line);border-radius:999px;background:var(--bg);padding:0 16px;font-size:16px;color:var(--ink)}

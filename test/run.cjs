@@ -27,11 +27,16 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
 
   // Menu : ajouter deux recettes, poser l'une sur mardi soir.
   await page.click('[data-toggle="boeuf"]'); await page.click('[data-toggle="crepes"]'); await page.click('[data-view="menu"]');
-  await page.waitForSelector('.slot'); ok(await page.locator('.week-sec').count() === 1, 'menu : tout est « à caser » au départ');
+  await page.waitForSelector('.slot'); ok(await page.locator('.week-sec .mrow').count() === 2, 'menu : tout est « à caser » au départ');
+  ok(await page.locator('.week .cell').count() === 14, 'tableau : 7 jours × midi et soir');
   await page.selectOption('[data-slot="boeuf"]', '1-soir'); await page.waitForTimeout(300);
-  ok(await page.locator('.week-sec[data-key="w:1"] .mrow').count() === 1, 'planning : le bœuf est sur mardi');
-  ok(await page.locator('.week-sec').count() === 8, 'planning : la semaine s’affiche (à caser + 7 jours)');
-  const plan = window => window; await shot('02-menu-semaine');
+  ok(await page.locator('.cell[data-key="s:1-soir"] .tile').count() === 1, 'planning : le bœuf est dans la case mardi soir');
+  await page.click('[data-pick="3-midi"]'); await page.waitForSelector('#pick[open]'); await page.fill('#pick-q', 'tarte'); await page.click('[data-pickr="tarte"]'); await page.waitForTimeout(300);
+  ok(await page.locator('.cell[data-key="s:3-midi"] .tile').count() === 1 && await page.evaluate(() => S.menu.tarte === 6), 'tableau : + jeudi midi ajoute la tarte au menu (6 parts) et dans la case');
+  await shot('02-menu-semaine');
+  await page.click('.cell[data-key="s:3-midi"] [data-unslot="tarte"]'); await page.waitForTimeout(300);
+  ok(await page.locator('.cell[data-key="s:3-midi"] .tile').count() === 0 && await page.locator('[data-slot="tarte"]').count() === 1, 'tableau : ✕ remet la tarte « à caser »');
+  await page.click('[data-toggle="tarte"]'); await page.waitForTimeout(300);
   ok(await page.evaluate(() => __T.docs.find(d => d.path.endsWith('state/menu')).data.plan.boeuf === '1-soir'), 'planning : enregistré');
 
   // Courses : ordre des rayons, « on en a toujours », habituels.
