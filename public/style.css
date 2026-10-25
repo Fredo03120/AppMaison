@@ -662,7 +662,7 @@ dialog.acct{border-top:5px solid var(--accent)}
 :root{--hd1:#E9F0E2;--hd2:#F4F5EE;--hd-ink:#1D2A20;--leafc:#8FB37F;--ok-bg:#E6EFDC;--ok-ink:#3F6A48;--ok-dot:#4E7D52;--mute-bg:#F3F1EC;--mute-ink:#7C807A}
 :root[data-theme="dark"]{--hd1:#1E2A1E;--hd2:#181D18;--hd-ink:#ECEFEA;--leafc:#5E7F55;--ok-bg:#26331F;--ok-ink:#A9CFAF;--ok-dot:#9DC4A3;--mute-bg:#232823;--mute-ink:#A1A89F}
 body::before{background:var(--hd1)}
-header.top{background:linear-gradient(180deg,var(--hd1) 0%,var(--hd1) 30%,var(--hd2) 100%);color:var(--hd-ink);
+header.top{background:linear-gradient(170deg,var(--hd1) 0%,var(--hd2) 100%);color:var(--hd-ink);
   border-radius:0 0 30px 64px;box-shadow:0 8px 24px rgba(70,90,60,.08)}
 header.top::after{opacity:1;z-index:-1;inset:0;
   background:
@@ -767,13 +767,3 @@ header.top h1{color:var(--hd-ink)}
 .shop .item .xstep{background:var(--ok-bg)}
 .shop .item .xstep.solo{background:none}
 .shop .item.done{opacity:.55}
-/* Quand on tire l'écran vers le bas (iPhone), la zone qui apparaît au-dessus de l'en-tête prend sa couleur au lieu du blanc. */
-@media (max-width:720px){
-  .wrap{position:relative}
-  .wrap::before{content:"";position:absolute;bottom:100%;height:100vh;pointer-events:none;background:var(--hd1);
-    left:calc(-1*max(16px,env(safe-area-inset-left,0px)));right:calc(-1*max(16px,env(safe-area-inset-right,0px)))}
-}
-/* iPhone : la zone révélée quand on tire l'écran prend la couleur de fond de la page (html).
-   On la met à la couleur de l'en-tête ; le corps de page garde son fond crème. */
-html{background:var(--hd1)}
-body{background:var(--bg);min-height:100vh;min-height:100dvh}

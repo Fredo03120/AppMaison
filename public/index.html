@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nos Recettes</title>
 <meta name="description" content="Le carnet de recettes partagé de la maison, avec la liste de courses.">
-<meta name="theme-color" content="#E9F0E2" id="theme-color">
+<meta name="theme-color" content="#4B6A3F" id="theme-color">
 <script>
 // Thème choisi dans « Mon compte » : clair par défaut, sombre, ou auto (comme le téléphone).
 (function(){var mq=matchMedia('(prefers-color-scheme: dark)');
   window.applyTheme=function(t){try{if(t)localStorage.setItem('theme',t);else t=localStorage.getItem('theme')}catch(e){}
     t=t||'light';var d=t==='dark'||(t==='auto'&&mq.matches);document.documentElement.dataset.theme=d?'dark':'light';
-    var m=document.getElementById('theme-color');if(m)m.content=d?'#1E2A1E':'#E9F0E2';window.THEME=t};
+    var m=document.getElementById('theme-color');if(m)m.content=d?'#1C2A1B':'#4B6A3F';window.THEME=t};
   applyTheme();mq.addEventListener&&mq.addEventListener('change',function(){if(window.THEME==='auto')applyTheme()});})();
 </script>
 <link rel="manifest" href="/manifest.webmanifest">
