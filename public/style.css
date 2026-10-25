@@ -396,3 +396,119 @@ dialog.acct::backdrop{background:rgba(0,0,0,.45)}
 /* Menu : onglets Recettes choisies / Semaine */
 .mtabs{margin-bottom:16px;max-width:460px}
 .mtabs .cnt{background:var(--accent-soft);color:var(--accent-text);border-radius:999px;padding:0 7px;font-size:12px;margin-left:4px}
+
+/* ===== Passe graphique : bandeau vert en haut, couleurs par rayon et par repas ===== */
+:root{--band:#4B6A3F;--band2:#6E9A6C;--on-band:#FFFFFF;--on-band-soft:rgba(255,255,255,.72);--band-glass:rgba(255,255,255,.16);
+  --midi:#FFF4DF;--midi-ink:#9A6A1C;--soir:#E9EEF8;--soir-ink:#4A5A86}
+:root[data-theme="dark"]{--band:#1C2A1B;--band2:#2F4A30;--on-band:#ECEFEA;--on-band-soft:rgba(236,239,234,.7);--band-glass:rgba(255,255,255,.1);
+  --midi:#2E2A1E;--midi-ink:#E2C46F;--soir:#1F2430;--soir-ink:#B5BEC9}
+/* Un motif de feuilles très discret dans le bandeau. */
+.band-bg{background:var(--band) linear-gradient(118deg,var(--band) 0%,var(--band2) 100%);color:var(--on-band)}
+.band-bg::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.14;border-radius:inherit;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 50c0-12 8-20 20-20 0 12-8 20-20 20zM30 50l20-20'/%3E%3Cpath d='M90 100c0-12-8-20-20-20 0 12 8 20 20 20zM90 100L70 80'/%3E%3Cpath d='M95 25c-10 0-16 6-16 16 10 0 16-6 16-16zM79 41l16-16'/%3E%3C/svg%3E") 0 0/120px 120px}
+body::before{background:var(--band)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;overflow:hidden;isolation:isolate;
+  background:var(--band) linear-gradient(118deg,var(--band) 0%,var(--band2) 100%);color:var(--on-band);
+  border-radius:0 0 26px 26px;margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px))) 18px calc(-1*max(16px,env(safe-area-inset-right,0px)));
+  padding:14px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));
+  box-shadow:0 10px 28px rgba(60,80,50,.18)}
+header.top::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.14;z-index:-1;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 50c0-12 8-20 20-20 0 12-8 20-20 20zM30 50l20-20'/%3E%3Cpath d='M90 100c0-12-8-20-20-20 0 12 8 20 20 20zM90 100L70 80'/%3E%3Cpath d='M95 25c-10 0-16 6-16 16 10 0 16-6 16-16zM79 41l16-16'/%3E%3C/svg%3E") 0 0/120px 120px}
+header.top h1{color:var(--on-band)}
+.leaf{color:#D6EBC9}
+:root[data-theme="dark"] .leaf{color:#9DC4A3}
+.carnet-btn{color:var(--on-band);background:var(--band-glass);border-radius:999px;padding:3px 10px 3px 12px;font-size:14px;margin-top:6px}
+.carnet-btn:hover{color:var(--on-band);background:rgba(255,255,255,.26)}
+.acct-btn{background:#F6F3EE;color:var(--band);box-shadow:0 2px 10px rgba(0,0,0,.18)}
+:root[data-theme="dark"] .acct-btn{background:#ECEFEA;color:#1C2A1B}
+@media (min-width:721px){
+  header.top{border-radius:26px;margin:14px 0 22px;padding:16px 22px}
+  nav.tabs{background:var(--band-glass)}
+  nav.tabs button{color:var(--on-band-soft)}
+  nav.tabs button[aria-current="page"]{background:#FFFFFF;color:var(--band);box-shadow:0 2px 8px rgba(0,0,0,.14)}
+  :root[data-theme="dark"] nav.tabs button[aria-current="page"]{background:#ECEFEA;color:#1C2A1B}
+  nav.tabs .badge{background:#FFFFFF;color:var(--band)}
+  nav.tabs button[aria-current="page"] .badge{background:var(--band);color:#fff}
+}
+@media (max-width:720px){
+  header.top{padding-top:calc(14px)}
+  .login{margin-top:4vh}
+}
+/* Écran de connexion : même bandeau. */
+.login-band{position:relative;overflow:hidden;isolation:isolate;border-radius:26px;padding:28px 24px 24px;
+  background:var(--band) linear-gradient(118deg,var(--band) 0%,var(--band2) 100%);color:var(--on-band);box-shadow:0 10px 28px rgba(60,80,50,.18)}
+.login-band::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.14;z-index:-1;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 50c0-12 8-20 20-20 0 12-8 20-20 20zM30 50l20-20'/%3E%3Cpath d='M90 100c0-12-8-20-20-20 0 12 8 20 20 20zM90 100L70 80'/%3E%3Cpath d='M95 25c-10 0-16 6-16 16 10 0 16-6 16-16zM79 41l16-16'/%3E%3C/svg%3E") 0 0/120px 120px}
+.login-band h1{color:var(--on-band);font-size:38px}
+.login-band p{color:var(--on-band-soft);margin-top:8px;font-size:16px}
+.login>p{color:var(--muted);font-size:14px}
+
+/* Recettes : vignettes sans photo teintées, titres de rayon soulignés d'un trait vert. */
+.thumb{background:linear-gradient(145deg,var(--soft),var(--accent-soft))}
+.thumb .ph{color:var(--accent-text);opacity:.8}
+.sect-h h2::before{content:"";display:inline-block;width:6px;height:26px;border-radius:3px;background:var(--accent);margin-right:12px;vertical-align:-3px}
+.card .add{color:var(--accent-text)}
+.chip .icon{color:var(--accent-text)}
+.facts div{background:var(--surface);border-radius:12px;padding:8px 12px;box-shadow:var(--shadow)}
+.facts{border-block:0;padding-block:0}
+.ings{background:var(--surface);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.ings .hero{margin:-16px -16px 16px;border-radius:var(--r) var(--r) 0 0}
+.detail .ings h2{margin-top:18px}
+.empty{background:linear-gradient(160deg,var(--surface),var(--accent-soft))}
+
+/* Courses : la progression en barre, une couleur par rayon. */
+.progress{display:flex;align-items:center;gap:10px}
+.progress .bar{flex:0 0 120px;height:8px;border-radius:999px;background:var(--soft);overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06) inset}
+.progress .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--band2),var(--accent));transition:width .3s}
+@media (prefers-reduced-motion:reduce){.progress .bar i{transition:none}}
+.shop section{border-top:4px solid var(--aisle,var(--accent-soft))}
+.shop h2 .aico{background:var(--aisle,var(--accent-soft))}
+.shop section[data-key="c:Boulangerie"]{--aisle:#F5E2C4}
+.shop section[data-key="c:Fruits & légumes"]{--aisle:#D8EBCF}
+.shop section[data-key="c:Viandes & poissons"]{--aisle:#F4D6D0}
+.shop section[data-key="c:Crèmerie & fromages"]{--aisle:#FBEFC8}
+.shop section[data-key="c:Épicerie"]{--aisle:#F2DFC8}
+.shop section[data-key="c:Boissons"]{--aisle:#D4E8EE}
+.shop section[data-key="c:Surgelés"]{--aisle:#D9E6F5}
+.shop section[data-key="c:Hygiène & beauté"]{--aisle:#E6DBF0}
+.shop section[data-key="c:Entretien & maison"]{--aisle:#DDE8EC}
+.shop section[data-key="c:Bébé & animaux"]{--aisle:#F3DDE6}
+.shop section[data-key="c:Placard"]{--aisle:#E8E3D6}
+.shop section[data-key="c:Divers"]{--aisle:#E3E6E1}
+:root[data-theme="dark"] .shop section{--aisle:#2A3A2D}
+:root[data-theme="dark"] .shop section[data-key="c:Boulangerie"]{--aisle:#3A3222}
+:root[data-theme="dark"] .shop section[data-key="c:Fruits & légumes"]{--aisle:#26331F}
+:root[data-theme="dark"] .shop section[data-key="c:Viandes & poissons"]{--aisle:#3B2624}
+:root[data-theme="dark"] .shop section[data-key="c:Crèmerie & fromages"]{--aisle:#3B3620}
+:root[data-theme="dark"] .shop section[data-key="c:Épicerie"]{--aisle:#382E20}
+:root[data-theme="dark"] .shop section[data-key="c:Boissons"]{--aisle:#1F3036}
+:root[data-theme="dark"] .shop section[data-key="c:Surgelés"]{--aisle:#1F2A3A}
+:root[data-theme="dark"] .shop section[data-key="c:Hygiène & beauté"]{--aisle:#2E2538}
+:root[data-theme="dark"] .shop section[data-key="c:Entretien & maison"]{--aisle:#22302F}
+:root[data-theme="dark"] .shop section[data-key="c:Bébé & animaux"]{--aisle:#372530}
+.item input{border-radius:6px}
+.item.done{opacity:.7}
+.always{border-top:4px solid var(--accent-soft)}
+
+/* Semaine : midi en chaud, soir en frais. */
+.cell[data-key$="-midi"]{background:var(--midi)}
+.cell[data-key$="-midi"] .cell-m{color:var(--midi-ink)}
+.cell[data-key$="-midi"] .cell-add{background:rgba(255,255,255,.7);color:var(--midi-ink)}
+.cell[data-key$="-soir"]{background:var(--soir)}
+.cell[data-key$="-soir"] .cell-m{color:var(--soir-ink)}
+.cell[data-key$="-soir"] .cell-add{background:rgba(255,255,255,.7);color:var(--soir-ink)}
+.cell.free{border:0;box-shadow:none;opacity:.85}
+.cell:not(.free){box-shadow:var(--shadow)}
+:root[data-theme="dark"] .cell .cell-add{background:rgba(255,255,255,.1)}
+.day-h{color:var(--accent-text)}
+.mtabs{background:var(--surface);box-shadow:var(--shadow)}
+.mtabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:none}
+.mtabs button[aria-pressed="true"] .cnt{background:rgba(255,255,255,.25);color:#fff}
+
+/* Fenêtres et retours. */
+dialog.acct{border-top:5px solid var(--accent)}
+.toast{background:var(--band);color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.offline{background:var(--midi);color:var(--midi-ink);border-left:4px solid var(--midi-ink)}
+.s-me,.s-sec .s-row.s-open{border-left:0}
+.av.grp{background:var(--accent-soft);color:var(--accent-text)}
+.c-msg.mine{background:var(--band2);border-color:var(--band2);color:#fff}
