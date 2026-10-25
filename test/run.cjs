@@ -18,10 +18,6 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
   await new Promise(r => srv.listen(0, r)); const base = 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch(); const ctx = await browser.newContext({ viewport: { width: 420, height: 860 }, deviceScaleFactor: 2, locale: 'fr-FR' });
   const page = await ctx.newPage(); const errors = [];
-  // Pas de réseau ici : Wikipédia répond une vignette factice (carré vert), pour vérifier l'affichage des photos.
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkqGeoBwAB8gD5/nrS3wAAAABJRU5ErkJggg==', 'base64');
-  await page.route('https://fr.wikipedia.org/**', r => r.fulfill({ json: { type: 'standard', thumbnail: { source: 'https://upload.wikimedia.org/test.png' } } }));
-  await page.route('https://upload.wikimedia.org/**', r => r.fulfill({ body: png, contentType: 'image/png' }));
   await page.goto(base); await page.evaluate(() => localStorage.clear());
   await page.addInitScript(() => { try { window.__offline = localStorage.getItem('mockOffline') === '1'; } catch (e) {} });
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push(m.text()); });
@@ -55,7 +51,7 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
 
   // Courses : ordre des rayons, « on en a toujours », habituels.
   await page.click('[data-view="courses"]'); await page.waitForSelector('.shop section');
-  const first = async () => page.locator('.shop section h2 .aname').first().innerText();
+  const first = async () => page.locator('.shop section h2 span').first().innerText();
   ok((await first()).includes('Fruits'), 'rayons : Fruits & légumes en premier par défaut');
   await page.click('[data-act="rayons"]'); await page.waitForSelector('#rayons[open]');
   await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]'); await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]'); await page.click('[data-ray="Crèmerie & fromages"][data-d="-1"]');
@@ -74,7 +70,6 @@ const ok = (c, m) => { if (!c) throw new Error('ÉCHEC : ' + m); console.log('ok
   ok((await page.locator('#hab-go').innerText()).includes('2 articles'), 'habituels : le bouton compte 2 articles');
   await shot('04-habituels'); await page.click('#hab-go'); await page.waitForTimeout(300);
   ok(await page.locator('.item[data-key^="x:"]').count() === 2, 'habituels : 2 articles ajoutés à la liste');
-  await page.waitForSelector('.shop .item .ico img', { timeout: 5000 }); ok(await page.locator('.shop .item .ico img').count() >= 5 && await page.locator('.cf-logo').count() === 1, 'photos : les articles et le logo Carrefour ont leur image');
   await shot('05-courses');
 
   // Hors ligne : cocher, ajouter, puis revenir en ligne.

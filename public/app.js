@@ -1,6 +1,6 @@
 const CATS=['Plats','Salades','Soupes & entrées','Desserts','Petit-déj & goûter','Bases'];
 const SHOP_ORDER=['Boulangerie','Fruits & légumes','Viandes & poissons','Crèmerie & fromages','Épicerie','Boissons','Surgelés','Hygiène & beauté','Entretien & maison','Bébé & animaux','Placard','Divers'];
-const S={adj:{},recipes:{},menu:{},plan:{},week:{},done:{},weekOff:0,selDay:null,fold:(()=>{try{return JSON.parse(localStorage.getItem('fold')||'{}')}catch(e){return {}}})(),checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0,menuTab:(()=>{try{return localStorage.getItem('menuTab')||'semaine'}catch(e){return 'semaine'}})()};
+const S={adj:{},recipes:{},menu:{},plan:{},week:{},done:{},weekOff:0,selDay:null,checked:{},extras:{},hidden:{},always:{},habits:{},rayons:null,trash:{},trashView:false,confirmClear:false,view:'recettes',detail:null,edit:null,q:'',cat:'',ready:false,offline:false,confirmDel:false,photo:null,cf:null,cfAddr:'',net:navigator.onLine!==false,pend:0,menuTab:(()=>{try{return localStorage.getItem('menuTab')||'semaine'}catch(e){return 'semaine'}})()};
 let db=null, assets=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -198,24 +198,6 @@ function detailLine(i){
 }
 function adjText(e,n){const pc=packCalc(e);if(pc)return n+' '+(n>1?pc.P[4]:pc.P[3]);const [f,st]=adjStep(e);const x=n*st;return f==='g'||f==='ml'?fmtQty(f,x):fmtNum(x)+(f?' '+plural(f,x):'')}
 // Icône de chaque rayon.
-const ING_ICON=[[/aubergine/,'🍆'],[/tomate/,'🍅'],[/basilic|persil|coriandre|ciboulette|menthe|thym|romarin|herbe/,'🌿'],[/oignon|echalote/,'🧅'],[/\bail\b/,'🧄'],[/carotte/,'🥕'],[/pomme de terre|patate/,'🥔'],[/pomme/,'🍎'],[/poire/,'🍐'],[/citron/,'🍋'],[/orange/,'🍊'],[/banane/,'🍌'],[/fraise/,'🍓'],[/raisin/,'🍇'],[/poivron/,'🫑'],[/salade|laitue|roquette|epinard|chou/,'🥬'],[/champignon/,'🍄'],[/courgette|concombre/,'🥒'],[/brocoli/,'🥦'],[/avocat/,'🥑'],[/mais/,'🌽'],[/\boeufs?\b/,'🥚'],[/beurre/,'🧈'],[/fromage|parmesan|gruyere|emmental|mozzarella|chevre|comte|feta|cheddar/,'🧀'],[/lait|creme|yaourt/,'🥛'],[/poulet|volaille|dinde/,'🍗'],[/boeuf|steak|viande|veau|agneau|hache/,'🥩'],[/lardon|jambon|bacon|porc|saucisse|chorizo/,'🥓'],[/saumon|thon|poisson|cabillaud|crevette/,'🐟'],[/pain|baguette|brioche/,'🥖'],[/farine|levure/,'🌾'],[/riz/,'🍚'],[/pates|spaghetti|penne|tagliatelle|nouille|lasagne/,'🍝'],[/huile|olive/,'🫒'],[/sel|poivre|epice|curry|paprika|cumin|cannelle|muscade/,'🧂'],[/sucre|miel|sirop|confiture/,'🍯'],[/chocolat|cacao/,'🍫'],[/vin\b/,'🍷'],[/biere/,'🍺'],[/\beau\b/,'💧'],[/cafe/,'☕'],[/\bthe\b|tisane/,'🍵'],[/jus/,'🧃'],[/papier|essuie|mouchoir/,'🧻'],[/lessive|savon|vaisselle|eponge|nettoyant/,'🧽'],[/dentifrice|shampo|gel douche/,'🧴']];
-function ingIcon(n,c){const t=plain(n||'');for(const [re,e] of ING_ICON)if(re.test(t))return e;return AISLE_ICON[c]||'🛒'}
-/* ---------- Photos des ingrédients ----------
-   Une vraie photo par article, prise sur Wikipédia (vignette de l'article du même nom), gardée sur l'appareil.
-   Sans photo (page absente, hors ligne), on garde l'icône. */
-const IMG=(()=>{try{return JSON.parse(localStorage.getItem('imgs')||'{}')}catch(e){return {}}})();
-const IMG_BUSY=new Set();
-function imgKey(n){return plain(n).trim().replace(/\s+/g,' ')}
-function imgFor(n){const k=imgKey(n);if(!k)return '';if(IMG[k]!==undefined)return IMG[k];if(navigator.onLine!==false&&!IMG_BUSY.has(k)){IMG_BUSY.add(k);fetchImg(k,n.trim())}return ''}
-async function wikiThumb(title){const r=await fetch('https://fr.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/\s+/g,'_')),{headers:{accept:'application/json'}});
-  if(r.status===404)return '';if(!r.ok)throw new Error(r.status);const j=await r.json();if(j.type==='disambiguation')return '';return (j.thumbnail&&j.thumbnail.source)||''}
-async function fetchImg(k,n){try{
-    const tries=[n];const sing=n.replace(/(e?s)$/,'');if(sing!==n&&sing.length>2)tries.push(sing);const first=n.split(/\s+/)[0];if(first.length>3&&first!==n&&first!==sing)tries.push(first);
-    let url='';for(const t of tries){url=await wikiThumb(t);if(url)break}
-    IMG[k]=url;try{localStorage.setItem('imgs',JSON.stringify(IMG))}catch(e){}
-    clearTimeout(fetchImg.t);fetchImg.t=setTimeout(render,80)
-  }catch(e){setTimeout(()=>IMG_BUSY.delete(k),30000)}}
-function ingPic(n,c){const u=imgFor(n);return u?`<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">`:ingIcon(n,c)}
 const AISLE_ICON={'Boulangerie':'🥖','Fruits & légumes':'🥬','Viandes & poissons':'🥩','Crèmerie & fromages':'🧀','Épicerie':'🥫','Boissons':'🧃','Surgelés':'🧊','Hygiène & beauté':'🧴','Entretien & maison':'🧽','Bébé & animaux':'🐾','Placard':'🧂','Divers':'🛒'};
 function shoppingList(){
   const map=new Map();
@@ -348,7 +330,6 @@ const ICON={
  spark:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4l1.8 4.7L16.5 10.5l-4.7 1.8L10 17l-1.8-4.7L3.5 10.5l4.7-1.8z"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></svg>',
  cart:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1"/><circle cx="17" cy="20.5" r="1"/></svg>',
  leaf:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/><path d="M5 19l7-7"/></svg>',
-  trash:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
  plus:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
  check:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
  back:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
@@ -526,27 +507,20 @@ function vAlways(){
 function vCourses(){
   const items=shoppingList();
   const sug=suggestions(S.xq||'');
-  const add=`<form class="addrow" id="addx"><span class="addin"><span class="addplus" aria-hidden="true">${ICON.plus}</span><input id="xt" autocomplete="off" placeholder="Ajouter un article (ex. papier toilette, 6 yaourts)" aria-label="Article à ajouter"></span><button class="btn add-btn">${ICON.plus}Ajouter</button>
+  const add=`<form class="addrow" id="addx"><input id="xt" autocomplete="off" placeholder="Ajouter un article (ex. papier toilette, 6 yaourts)" aria-label="Article à ajouter"><button class="btn">${ICON.plus}Ajouter</button>
     ${sug.length?`<div class="sugg" role="group" aria-label="Suggestions">${sug.map(n=>`<button type="button" class="chip" data-sugg="${esc(n)}">${ICON.plus}${esc(n)}</button>`).join('')}</div>`:''}</form>
     <div class="quick"><button type="button" class="btn soft" data-act="habits">${ICON.star}Habituels${habitsList().length?` <span class="cnt">${habitsList().length}</span>`:''}</button><button type="button" class="btn ghost" data-act="rayons">${ICON.sort}Ordre des rayons</button></div>`;
-  if(!items.length) return `<h2 class="page-t">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>${vAlways()}`;
+  if(!items.length) return `<h2 style="font-size:28px;margin-bottom:14px">Liste de courses</h2>${add}<div class="empty"><h2>La liste est vide</h2><p>Ajoutez des recettes au menu : leurs ingrédients s’additionnent ici, rangés par rayon.</p><p><button class="btn primary" data-view="recettes">Choisir des recettes</button></p></div>${vAlways()}`;
   const done=items.filter(i=>S.checked[i.k]).length;
   const byCat={};items.forEach(i=>(byCat[i.c]=byCat[i.c]||[]).push(i));
-  const nrec=Object.keys(S.menu).filter(id=>S.recipes[id]).length, pct=Math.round(100*done/items.length);
-  const CF='<svg class="cf-logo" viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20c0-7 5-12 12-12 4 0 7 1.5 9 4l-4 4c-1.2-1.5-3-2.4-5-2.4-3.6 0-6 2.8-6 6.4s2.4 6.4 6 6.4c2 0 3.8-.9 5-2.4l4 4c-2 2.5-5 4-9 4-7 0-12-5-12-12z" fill="#1E4FA3"/><path d="M29 14l5 6-5 6z" fill="#D7222D"/></svg>';
-  const cfl=imgFor('Carrefour');const logo=cfl?`<img class="cf-logo" src="${esc(cfl)}" alt="" onerror="this.remove()">`:CF;
-  return `<div class="toolbar list-top"><h2 class="page-t">Liste de courses</h2>${done?`<button class="btn pill" data-act="uncheck"><span class="ring" aria-hidden="true"></span>Tout décocher</button>`:''}</div>
-  <div class="list-acts">${done?`<button class="btn pill on" data-act="rmchecked">${ICON.check}Retirer les cochés</button>`:''}<button class="btn pill ghost" data-act="askclear">${ICON.trash}Tout vider</button></div>
+  return `<div class="toolbar"><h2 style="font-size:28px;flex:1">Liste de courses</h2>${done?`<button class="btn ghost" data-act="uncheck">Tout décocher</button><button class="btn" data-act="rmchecked">Retirer les cochés</button>`:''}<button class="btn ghost danger-t" data-act="askclear">Tout vider</button>${items.some(i=>!S.checked[i.k])?'<button class="btn primary" data-act="carrefour">🛒 Panier Carrefour</button>':''}</div>
+  ${vCarrefour()}
   ${S.confirmClear?`<div class="confirm" style="margin-bottom:14px"><span>Vider toute la liste ? Le panier de recettes sera vidé aussi, pour tout le groupe. Le menu de la semaine reste.</span><button class="btn danger" data-act="clearall">Oui, tout vider</button><button class="btn ghost" data-act="noclear">Annuler</button></div>`:''}
-  <div class="cf-card" id="cf-card"><button type="button" class="cf-head" data-act="carrefour" aria-label="Panier Carrefour : envoyer la liste">${logo}<b>Panier Carrefour</b>${ICON.chev}</button>
-    <p class="progress"><span><b>${done} sur ${items.length}</b> dans le panier</span><span>pour ${nrec} recette(s)</span><span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span></p>${ICON.cart}</div>
-  <p class="progress mini" id="progress-mini" aria-hidden="true"><span><b>${done} sur ${items.length}</b> dans le panier</span><span class="bar"><i style="width:${pct}%"></i></span></p>
-  ${vCarrefour()}${add}
+  <p class="progress"><span><b>${done} sur ${items.length}</b> dans le panier</span><span>pour ${Object.keys(S.menu).filter(id=>S.recipes[id]).length} recette(s)</span><span class="bar" aria-hidden="true"><i style="width:${Math.round(100*done/items.length)}%"></i></span></p>${add}
   <div class="shop">${aisleOrder().filter(c=>byCat[c]).map(c=>{const sc=S.sortChecked||S.checked,l=byCat[c].sort((a,b)=>(!!sc[a.k]-!!sc[b.k])||a.n.localeCompare(b.n,'fr'));
-   const fold=!!S.fold[c];
-   return `<section data-key="c:${esc(c)}" class="${fold?'fold':''}"><h2><button type="button" class="aisle-h" data-fold="${esc(c)}" aria-expanded="${!fold}"><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span><span class="aname">${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small>${ICON.chev}</button></h2>${fold?'':`${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
-   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span class="ico" aria-hidden="true">${ingPic(i.n,c)}</span><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
-     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}${!i.extra&&!i.hand&&(c==='Placard'||c==='Épicerie')?`<button type="button" class="linkbtn always-btn" data-always="${esc(i.k)}" data-n="${esc(i.n)}">On en a toujours</button>`:''}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}`}</section>`}).join('')}</div>${vAlways()}`;
+   return `<section data-key="c:${esc(c)}"><h2><span><span class="aico" aria-hidden="true">${AISLE_ICON[c]||''}</span>${esc(c)}</span><small>${l.filter(i=>!S.checked[i.k]).length} restant(s)</small></h2>${c==='Placard'?'<p class="hint">À vérifier, vous en avez sûrement déjà.</p>':''}
+   ${l.map(i=>`<label class="item ${S.checked[i.k]?'done':''}" data-key="${esc(i.k)}"><input type="checkbox" data-k="${esc(i.k)}" ${S.checked[i.k]?'checked':''}><span><span class="n">${esc(i.n)}</span>${!i.extra&&(S.adj[i.k]>0||i.hand||packCalc(i))?` <span class="q tot">· ${esc(totalText(i,S.adj[i.k]||0))}</span><span class="from">${esc(detailLine(i))}</span>`
+     :`${i.qty?` <span class="q">· ${esc(i.qty)}</span>`:''}<span class="from">${esc(i.from)}</span>`}${!i.extra&&!i.hand&&(c==='Placard'||c==='Épicerie')?`<button type="button" class="linkbtn always-btn" data-always="${esc(i.k)}" data-n="${esc(i.n)}">On en a toujours</button>`:''}</span>${!i.extra?`<span class="xstep${S.adj[i.k]>0?'':' solo'}" aria-label="En plus de la recette">${S.adj[i.k]>0?`<button type="button" data-adj="${esc(i.k)}" data-d="-1" aria-label="Moins">−</button><span class="plusin">+${(adjStep(i)[0]===''||adjStep(i)[0]==='#')?qin('a:'+i.k,S.adj[i.k],'En plus'):`<b>${esc(adjText(i,S.adj[i.k]))}</b>`}</span>`:''}<button type="button" data-adj="${esc(i.k)}" data-d="1" aria-label="En prendre plus que la recette">+</button></span>${i.hand?`<button class="iconbtn delx" data-delx="${esc(i.hand.map(h=>h.id).join(','))}" aria-label="Retirer ce qui a été ajouté à la main">✕</button>`:''}`:''}${i.extra?`<span class="xstep" aria-label="Quantité"><button type="button" data-xq="${esc(i.extra)}" data-d="-1" aria-label="Moins" aria-disabled="${i.xq<=1}">−</button>${qin('x:'+i.extra,i.xq,'Quantité')}<button type="button" data-xq="${esc(i.extra)}" data-d="1" aria-label="Plus">+</button></span><button class="iconbtn delx" data-delx="${esc(i.extra)}" aria-label="Supprimer ${esc(i.n)}">✕</button>`:''}</label>`).join('')}</section>`}).join('')}</div>${vAlways()}`;
 }
 /* ---------- Ordre des rayons (fenêtre) ---------- */
 function renderRayons(){
@@ -714,11 +688,7 @@ function render(){
   if(fid==='cfa'&&S.cf&&S.cf.step==='addr')S.cf.v=val;
   if(['q','xt','msg','s-add-in','cfa'].includes(fid)){const el=document.getElementById(fid);if(el){if(fid!=='q'&&fid!=='msg')el.value=val;el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
   if(v==='social') Social.after();
-  watchCard();
 }
-function watchCard(){const card=$('#cf-card'),mini=$('#progress-mini');if(!card||!mini||!window.IntersectionObserver){if(watchCard.o){watchCard.o.disconnect();watchCard.o=null}return}
-  if(watchCard.el===card)return;if(watchCard.o)watchCard.o.disconnect();watchCard.el=card;
-  watchCard.o=new IntersectionObserver(([e])=>{const m=$('#progress-mini');if(m)m.classList.toggle('show',!e.isIntersecting&&e.boundingClientRect.top<0)},{threshold:0});watchCard.o.observe(card)}
 function go(view){if(view==='social'&&window.Social)Social.reset();S.view=view;S.detail=null;S.edit=null;S.trashView=false;S.confirmDel=false;S.confirmClear=false;render();scrollTo(0,0)}
 
 /* ---------- Événements ---------- */
@@ -735,7 +705,6 @@ document.addEventListener('click',async e=>{
   if(b.dataset.pickr){const id=b.dataset.pickr,slot=S.pick;$('#pick').close();addToSlot(id,slot);toast(S.recipes[id].title+' : '+slotLabel(slot)+(S.menu[id]?'':' · pas dans le panier'));return}
   if(b.dataset.unslot){setSlot(b.dataset.unslot,'',b.dataset.s);return}
   if(b.dataset.cooked){const id=b.dataset.cooked,slot=b.dataset.s,v=!(S.done[slot]&&S.done[slot][id]);S.done={...S.done,[slot]:{...(S.done[slot]||{}),[id]:v}};render();if(db)upd('state/semaine',{done:{[slot]:{[id]:v}}});if(v)toast('Bon appétit ! '+S.recipes[id].title+' : fait.');return}
-  if(b.dataset.fold){const c=b.dataset.fold;S.fold={...S.fold,[c]:!S.fold[c]};try{localStorage.setItem('fold',JSON.stringify(S.fold))}catch(err){}render();return}
   if(b.dataset.day){S.selDay=b.dataset.day;render();const el=document.getElementById('day-'+b.dataset.day);if(el){const h=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-h'))||96;window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-h-10,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}return}
   if(b.dataset.delhab){e.preventDefault();const id=b.dataset.delhab,h={...S.habits};delete h[id];S.habits=h;renderHabits();render();if(db)upd('state/habituels',{items:{[id]:false}});return}
   if(b.dataset.restore){const id=b.dataset.restore,r={...S.trash[id]};if(!r.title)return;delete r.deletedAt;delete r.deletedBy;
