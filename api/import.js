@@ -249,6 +249,7 @@ export default async function handler(req, res) {
       const html = await fetchPage(body.url);
       const recipe = fromJsonLd(html, body.url) || fromHeadings(html, body.url);
       if (recipe) return res.json({ recipe, via: 'page' });
+      if (body.debug) return res.json({ len: html.length, ingr: /ingr[ée]dient/i.test(html), head: html.slice(0, 300) });
       const text = decode(html.replace(/<(script|style|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ')).slice(0, 60000);
       const r = await withClaude([{ type: 'text', text: 'Voici le texte d’une page web. Extrais la recette.\n\n' + text }]);
       if (!r) return res.status(422).json({ error: 'not_found' });
