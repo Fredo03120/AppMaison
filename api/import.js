@@ -103,7 +103,8 @@ const meta = (html, prop) => decode((html.match(new RegExp('<meta[^>]+(?:propert
 
 function fromHeadings(html, url) {
   const body = html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style|nav|footer|header|aside|form|noscript)\b[\s\S]*?<\/\1>/gi, ' ');
-  const blocks = [...body.matchAll(/<(h[1-6]|li|p)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map(m => ({ tag: m[1].toLowerCase(), text: decode(m[2]), raw: m[2] }));
+  // Un bloc s'arrête à la balise de bloc suivante : les <p> jamais fermés (fréquents sur WordPress) n'avalent pas la suite.
+  const blocks = [...body.matchAll(/<(h[1-6]|li|p)\b[^>]*>([\s\S]*?)(?=<\/?(?:h[1-6]|li|p|ul|ol|div|section|article|table)\b|$)/gi)].map(m => ({ tag: m[1].toLowerCase(), text: decode(m[2]), raw: m[2] }));
   // Une ligne de paragraphe en gras courte compte comme un titre (« <p><strong>Ingrédients</strong></p> »).
   const isHead = b => /^h/.test(b.tag) || (b.tag === 'p' && b.text.length < 60 && /^\s*<(strong|b)\b/i.test(b.raw));
   const start = blocks.findIndex(b => isHead(b) && b.text.length < 60 && /ingr[ée]dients?/i.test(b.text));
@@ -249,7 +250,6 @@ export default async function handler(req, res) {
       const html = await fetchPage(body.url);
       const recipe = fromJsonLd(html, body.url) || fromHeadings(html, body.url);
       if (recipe) return res.json({ recipe, via: 'page' });
-      if (body.debug) return res.json({ len: html.length, ingr: /ingr[ée]dient/i.test(html), head: html.slice(0, 300) });
       const text = decode(html.replace(/<(script|style|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ')).slice(0, 60000);
       const r = await withClaude([{ type: 'text', text: 'Voici le texte d’une page web. Extrais la recette.\n\n' + text }]);
       if (!r) return res.status(422).json({ error: 'not_found' });
