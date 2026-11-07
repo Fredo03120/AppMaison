@@ -91,6 +91,65 @@ function fromJsonLd(html, url) {
   return null;
 }
 
+/* ---------- Lien : page de blog sans données structurées (gratuit, sans IA) ----------
+   Repère un titre « Ingrédients » suivi d'une liste, puis un titre « Préparation / Étapes » suivi d'étapes. */
+const STEP_HEAD = /pr[ée]paration|[ée]tapes?|instructions|d[ée]roul[ée]|r[ée]alisation|m[ée]thode|recette/i;
+const minutesTxt = t => {
+  const h = +(t.match(/(\d+)\s*h/i) || [])[1] || 0, m = +(t.match(/(\d+)\s*(?:min|mn)/i) || [])[1] || 0;
+  const min = h * 60 + m;
+  return !min ? '' : min < 60 ? min + ' min' : Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + String(min % 60).padStart(2, '0') : '');
+};
+const meta = (html, prop) => decode((html.match(new RegExp('<meta[^>]+(?:property|name)=["\']' + prop + '["\'][^>]*content=["\']([^"\']*)', 'i')) || html.match(new RegExp('<meta[^>]+content=["\']([^"\']*)["\'][^>]*(?:property|name)=["\']' + prop + '["\']', 'i')) || [])[1]);
+
+function fromHeadings(html, url) {
+  const body = html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style|nav|footer|header|aside|form|noscript)\b[\s\S]*?<\/\1>/gi, ' ');
+  const blocks = [...body.matchAll(/<(h[1-6]|li|p)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map(m => ({ tag: m[1].toLowerCase(), text: decode(m[2]), raw: m[2] }));
+  // Une ligne de paragraphe en gras courte compte comme un titre (« <p><strong>Ingrédients</strong></p> »).
+  const isHead = b => /^h/.test(b.tag) || (b.tag === 'p' && b.text.length < 60 && /^\s*<(strong|b)\b/i.test(b.raw));
+  const start = blocks.findIndex(b => isHead(b) && b.text.length < 60 && /ingr[ée]dients?/i.test(b.text));
+  if (start < 0) return null;
+  const groups = [{ group: '', lines: [] }];
+  let i = start + 1;
+  for (; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (isHead(b) || (b.tag === 'p' && /:\s*$/.test(b.text) && b.text.length < 50)) {
+      if (STEP_HEAD.test(b.text) && groups.some(g => g.lines.length)) break;
+      groups.push({ group: b.text.replace(/\s*:\s*$/, ''), lines: [] });
+    } else if (b.tag === 'li' && b.text) groups[groups.length - 1].lines.push(b.text);
+    else if (b.tag === 'p' && groups.every(g => !g.lines.length) && b.text.length < 120 && /^\d|^(un|une|du|de la|des|sel|poivre)\b/i.test(b.text)) groups[0].lines.push(b.text);
+    else if (b.tag === 'p' && groups.some(g => g.lines.length) && b.text.length > 120) break;
+  }
+  const ingredients = groups.filter(g => g.lines.length);
+  if (!ingredients.length || ingredients.reduce((n, g) => n + g.lines.length, 0) < 2) return null;
+  // Étapes : une liste, sinon des paragraphes ; on s'arrête au titre suivant ou à la fin de la liste.
+  const steps = [];
+  let fromList = false;
+  for (i++; i < blocks.length && steps.length < 40; i++) {
+    const b = blocks[i];
+    if (isHead(b)) { if (steps.length) break; continue; }
+    if (b.tag === 'li' && b.text) { if (!fromList && steps.length) break; fromList = true; steps.push(b.text); continue; }
+    if (b.tag !== 'p' || !b.text) continue;
+    if (fromList || (steps.length && b.text.length < 40)) break;
+    if (b.text.length >= 15) steps.push(b.text.replace(/^\s*(\d+[).:-]|étape\s*\d+\s*:?)\s*/i, ''));
+  }
+  const before = blocks.slice(Math.max(0, start - 15), start).map(b => b.text).join('\n');
+  const title = meta(html, 'og:title').replace(/\s*[-|–]\s*[^-|–]+$/, '') || decode((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1]) || decode((html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1]);
+  const pers = before.match(/(\d+)\s*(personnes?|parts?|pers\.?)/i);
+  return {
+    title,
+    sub: '',
+    cat: guessCat(title + ' ' + url),
+    ptxt: pers ? pers[1] + ' ' + (/part/i.test(pers[2]) ? 'parts' : 'personnes') : '',
+    prep: minutesTxt((before.match(/pr[ée]paration\s*:([^\n]*)/i) || [])[1] || ''),
+    cook: minutesTxt((before.match(/cuisson\s*:([^\n]*)/i) || [])[1] || ''),
+    ingredients,
+    steps,
+    notes: [],
+    img: meta(html, 'og:image'),
+    source: 'Source : ' + new URL(url).hostname.replace(/^www\./, ''),
+  };
+}
+
 /* ---------- Claude : photo, ou page sans données structurées ---------- */
 const SCHEMA = {
   type: 'object',
@@ -188,7 +247,7 @@ export default async function handler(req, res) {
 
     if (body.url) {
       const html = await fetchPage(body.url);
-      const recipe = fromJsonLd(html, body.url);
+      const recipe = fromJsonLd(html, body.url) || fromHeadings(html, body.url);
       if (recipe) return res.json({ recipe, via: 'page' });
       const text = decode(html.replace(/<(script|style|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ')).slice(0, 60000);
       const r = await withClaude([{ type: 'text', text: 'Voici le texte d’une page web. Extrais la recette.\n\n' + text }]);
