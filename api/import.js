@@ -126,7 +126,33 @@ const INSTRUCTIONS = `Tu recopies une recette de cuisine pour un carnet familial
 - Les astuces, variantes et conseils de conservation vont dans notes.
 - found = false si on ne voit pas de recette.`;
 
+// Gemini (offre gratuite de Google) si GEMINI_API_KEY est définie, sinon Claude (ANTHROPIC_API_KEY, payant).
+async function withGemini(content) {
+  const parts = content.map(c => c.type === 'image'
+    ? { inline_data: { mime_type: c.source.media_type, data: c.source.data } }
+    : { text: c.text });
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
+    method: 'POST',
+    signal: AbortSignal.timeout(55000),
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: INSTRUCTIONS }] },
+      contents: [{ role: 'user', parts }],
+      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: SCHEMA },
+    }),
+  });
+  if (!r.ok) throw new Error('gemini_' + r.status + ' ' + (await r.text()).slice(0, 500));
+  const data = await r.json();
+  const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+  if (!text) return null;
+  const out = JSON.parse(text);
+  if (!out.found || !out.title) return null;
+  delete out.found;
+  return { ...out, img: '' };
+}
+
 async function withClaude(content) {
+  if (process.env.GEMINI_API_KEY) return withGemini(content);
   if (!process.env.ANTHROPIC_API_KEY) { const e = new Error('no_key'); e.code = 'no_key'; throw e; }
   const client = new Anthropic();
   const response = await client.beta.messages.create({

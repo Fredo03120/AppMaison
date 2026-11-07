@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const dlg = () => $('import');
   const MSG = {
-    no_key: 'La lecture par Claude n’est pas encore activée (clé API à ajouter dans Vercel). Les liens des grands sites de recettes marchent déjà.',
+    no_key: 'La lecture des photos n’est pas encore activée (clé GEMINI_API_KEY à ajouter dans Vercel). Les liens des grands sites de recettes marchent déjà.',
     fetch: 'Impossible d’ouvrir ce lien. Vérifiez l’adresse, ou faites une capture d’écran de la recette et importez-la en photo.',
     not_found: 'Aucune recette trouvée. Essayez une photo plus nette, ou un autre lien.',
     auth: 'Votre session a expiré : reconnectez-vous.',
