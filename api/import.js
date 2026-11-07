@@ -134,7 +134,8 @@ function fromHeadings(html, url) {
     if (b.text.length >= 15) steps.push(b.text.replace(/^\s*(\d+[).:-]|étape\s*\d+\s*:?)\s*/i, ''));
   }
   const before = blocks.slice(Math.max(0, start - 15), start).map(b => b.text).join('\n');
-  const title = meta(html, 'og:title').replace(/\s*[-|–]\s*[^-|–]+$/, '') || decode((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1]) || decode((html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1]);
+  let title = meta(html, 'og:title').replace(/\s*[-|–]\s*[^-|–]+$/, '') || decode((html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || [])[1]) || decode((html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1]);
+  title = title.replace(/^recette\s+(?:(?:de|du|des)\s+|d['’]\s*)?/i, '').replace(/^./, c => c.toUpperCase());
   const pers = before.match(/(\d+)\s*(personnes?|parts?|pers\.?)/i);
   return {
     title,
